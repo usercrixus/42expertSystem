@@ -1,0 +1,11 @@
+# Cyclic rules without facts lead to undefined
+# Expect:
+# A: undefined
+# B: undefined
+
+A => B
+B => A
+
+=
+? A B
+

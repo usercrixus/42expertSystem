@@ -1,0 +1,11 @@
+# OR and XOR
+# Expect:
+# C: true    (A | B with A true)
+# X: false   (V ^ W with both true)
+
+A | B => C
+V ^ W => X
+
+= A V W
+? C X
+

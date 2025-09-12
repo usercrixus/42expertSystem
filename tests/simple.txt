@@ -1,0 +1,10 @@
+# Simple implication
+# Expect:
+# B: true
+# C: false
+
+A => B
+
+= A
+? B C
+
