@@ -10,4 +10,5 @@ public:
     TokenBlock(unsigned int priority);
     ~TokenBlock();
     bool execute();
+    unsigned int getPriority() const { return priority; }
 };

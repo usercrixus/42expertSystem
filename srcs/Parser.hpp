@@ -24,4 +24,9 @@ public:
     void parseClassic(std::string line, std::vector<TokenBlock> &fact_line);
     void finalizeParsing();
     int parse();
+
+    // --- add these getters ---
+    const std::set<char>& getInitialFacts() const { return initial_facts; }
+    const std::set<char>& getQueries()      const { return querie; }
+    const std::vector<std::vector<TokenBlock>>& getFactLines() const { return facts; }
 };

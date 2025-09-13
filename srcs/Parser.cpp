@@ -67,17 +67,17 @@ void Parser::parseClassic(std::string line, std::vector<TokenBlock> &fact_line)
 		else if (buff == ")")
 			fact_line.emplace_back(--priority);
 		else if (buff == "!")
-			fact_line.back().emplace_back(TokenNot());
+			fact_line.back().emplace_back(TokenEffect('!'));
 		else if (buff == "+")
-			fact_line.back().emplace_back(TokenAnd());
+			fact_line.back().emplace_back(TokenEffect('+'));
 		else if (buff == "|")
-			fact_line.back().emplace_back(TokenOr());
+			fact_line.back().emplace_back(TokenEffect('|'));
 		else if (buff == "^")
-			fact_line.back().emplace_back(TokenXor());
+			fact_line.back().emplace_back(TokenEffect('^'));
 		else if (buff == "=>")
-			fact_line.back().emplace_back(TokenImplies());
+			fact_line.back().emplace_back(TokenEffect('>'));
 		else if (buff == "<=>")
-			fact_line.back().emplace_back(TokenIff());
+			fact_line.back().emplace_back(TokenEffect('='));
 		else if (buff.size() == 1 && buff[0] >= 'A' && buff[0] <= 'Z')
 			fact_line.back().emplace_back(TokenEffect(buff[0]));
 		else if (buff.size() >= 3)
@@ -110,8 +110,8 @@ void Parser::finalizeParsing()
 		{
 			for (TokenEffect &token_effect : token_block)
 			{
-				if (initial_facts.find(token_effect.name) != initial_facts.end())
-					token_effect.set(true);
+				if (initial_facts.find(token_effect.type) != initial_facts.end())
+					token_effect.effect = true;
 			}
 		}
 	}
