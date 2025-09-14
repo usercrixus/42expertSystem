@@ -12,9 +12,9 @@ enum rhr_status_e
 
 enum rhr_value_e
 {
-	FALSE,
-	AMBIGOUS,
-	TRUE
+	R_FALSE,
+	R_AMBIGOUS,
+	R_TRUE
 };
 
 class Resolver

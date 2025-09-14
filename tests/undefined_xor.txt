@@ -1,0 +1,10 @@
+# Expect:
+# A: undefined
+# B: undefined
+
+A => B | C
+D => A ^ E
+
+=
+? A B
+

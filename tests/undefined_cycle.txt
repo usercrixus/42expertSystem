@@ -1,7 +1,7 @@
-# Cyclic rules without facts lead to undefined
+# Cyclic rules without facts lead to false
 # Expect:
-# A: undefined
-# B: undefined
+# A: false
+# B: false
 
 A => B
 B => A

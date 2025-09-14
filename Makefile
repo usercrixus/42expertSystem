@@ -29,6 +29,7 @@ test:
 	./expert tests/simple.txt
 	./expert tests/undefined_cycle.txt
 	./expert tests/subject.txt
+	./expert tests/undefined_xor.txt
         
 
 clean:
