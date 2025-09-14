@@ -14,8 +14,7 @@ int main(int argc, char **argv)
     Parser parser(argv[1]);
     if (parser.parse() != 0)
         return 1;
-    Resolver resolver;
-    resolver.resolve(parser.getFacts());
-    resolver.resolveQuerie(parser.getQuerie(), parser.getFacts());
+    Resolver resolver(parser.getQuerie(), parser.getFacts(), parser.getInitialFact());
+    resolver.resolveQuerie();
     return 0;
 }

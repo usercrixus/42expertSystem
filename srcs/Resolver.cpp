@@ -1,7 +1,8 @@
 #include "Resolver.hpp"
 #include <iostream>
 
-Resolver::Resolver(/* args */)
+Resolver::Resolver(std::set<char> querie, std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &facts, std::set<char> initial_facts)
+    : querie(querie), facts(facts), initial_facts(initial_facts)
 {
 }
 
@@ -11,159 +12,184 @@ Resolver::~Resolver()
 
 void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
 {
-	unsigned int priority = 0;
-	for (TokenBlock &token_block : fact)
-	{
-		if (token_block.getPriority() > priority)
-			priority = token_block.getPriority();
-	}
-	for (size_t i = 0; i < fact.size(); i++)
-	{
-		if (fact[i].getPriority() == priority)
-		{
-			fact[i].execute();
-			if (i != 0)
-			{
-				fact[i - 1].push_back(fact[i][0]);
-				fact.erase(fact.begin() + i);
-			}
-			else
-			{
-				fact[i].setPriority(0);
-			}
-		}
-	}
-	if (fact.size() > 1)
-		resolveLeft(fact);
+    unsigned int priority = 0;
+    for (TokenBlock &token_block : fact)
+    {
+        if (token_block.getPriority() > priority)
+            priority = token_block.getPriority();
+    }
+    for (size_t i = 0; i < fact.size(); i++)
+    {
+        if (fact[i].getPriority() == priority)
+        {
+            fact[i].execute();
+            if (i != 0)
+            {
+                fact[i - 1].push_back(fact[i][0]);
+                fact.erase(fact.begin() + i);
+            }
+            else
+                fact[i].setPriority(0);
+        }
+    }
+    if (fact.size() > 1)
+        resolveLeft(fact);
 }
 
-rhr_status_e Resolver::getStatus(char q, std::vector<TokenBlock> &fact)
+bool Resolver::isInterBlockAmbiguity(const std::vector<TokenBlock> &fact, std::vector<bool> &block_has_q_pos, std::vector<bool> &block_has_q_neg, std::vector<bool> &block_has_or_xor)
 {
-	// Determine how `q` appears in the RHS expression represented by TokenBlocks.
-	// Return NOT if `!q` appears, AMBIGOUS if `q` is involved in an OR or XOR,
-	// otherwise TRUE if `q` appears positively. If `q` is absent, default to AMBIGOUS.
-	bool found_q_pos = false;
-	bool found_q_neg = false;
-	bool ambiguous = false;
-
-	if (fact.empty())
-		return AMBIGOUS;
-
-	std::vector<bool> block_has_q_pos(fact.size(), false);
-	std::vector<bool> block_has_q_neg(fact.size(), false);
-	std::vector<bool> block_has_or_xor(fact.size(), false);
-
-	for (size_t i = 0; i < fact.size(); ++i)
-	{
-		TokenBlock &tb = fact[i];
-		for (size_t j = 0; j < tb.size(); ++j)
-		{
-			char t = tb[j].type;
-			if (t == '|' || t == '^')
-				block_has_or_xor[i] = true;
-			if (t == q)
-			{
-				bool is_neg = (j > 0 && tb[j - 1].type == '!');
-				if (is_neg)
-				{
-					found_q_neg = true;
-					block_has_q_neg[i] = true;
-				}
-				else
-				{
-					found_q_pos = true;
-					block_has_q_pos[i] = true;
-				}
-			}
-		}
-		// If q is in this block and this block has OR/XOR, it's ambiguous.
-		if (block_has_or_xor[i] && (block_has_q_pos[i] || block_has_q_neg[i]))
-			ambiguous = true;
-	}
-
-	// Detect cross-block OR/XOR connecting to a block containing q
-	for (size_t i = 0; i < fact.size(); ++i)
-	{
-		if (!block_has_or_xor[i])
-			continue;
-		if ((i > 0 && (block_has_q_pos[i - 1] || block_has_q_neg[i - 1])) ||
-			(i + 1 < fact.size() && (block_has_q_pos[i + 1] || block_has_q_neg[i + 1])))
-		{
-			ambiguous = true;
-			break;
-		}
-	}
-
-	if (ambiguous)
-		return AMBIGOUS;
-	if (found_q_neg)
-		return NOT;
-	if (found_q_pos)
-		return TRUE;
-	return AMBIGOUS;
+    for (size_t i = 0; i < fact.size(); ++i)
+    {
+        if (block_has_or_xor[i])
+        {
+            if ((i > 0 && (block_has_q_pos[i - 1] || block_has_q_neg[i - 1])) ||
+                (i + 1 < fact.size() && (block_has_q_pos[i + 1] || block_has_q_neg[i + 1])))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
-void Resolver::resolveQuerie(std::set<char> querie, std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &facts)
+rhr_status_e Resolver::innerBlockAmbiguity(char q, const std::vector<TokenBlock> &fact, std::vector<bool> &block_has_q_pos, std::vector<bool> &block_has_q_neg, std::vector<bool> &block_has_or_xor)
+{
+    bool found_q_pos = false;
+    bool found_q_neg = false;
+    for (size_t i = 0; i < fact.size(); ++i)
+    {
+        const TokenBlock &tokenBlock = fact[i];
+        for (size_t j = 0; j < tokenBlock.size(); ++j)
+        {
+            char token = tokenBlock[j].type;
+            if (token == '|' || token == '^')
+                block_has_or_xor[i] = true;
+            else if (token == q)
+            {
+                bool is_neg = (j > 0 && tokenBlock[j - 1].type == '!');
+                if (is_neg)
+                {
+                    found_q_neg = true;
+                    block_has_q_neg[i] = true;
+                }
+                else
+                {
+                    found_q_pos = true;
+                    block_has_q_pos[i] = true;
+                }
+            }
+        }
+        if (block_has_or_xor[i] && (block_has_q_pos[i] || block_has_q_neg[i]))
+            return AMBIGOUS;
+    }
+    if (found_q_pos)
+        return TRUE;
+    if (found_q_neg)
+        return NOT;
+    return AMBIGOUS;
+}
+
+rhr_status_e Resolver::getStatus(char q, const std::vector<TokenBlock> &fact)
+{
+    std::vector<bool> block_has_q_pos(fact.size(), false);
+    std::vector<bool> block_has_q_neg(fact.size(), false);
+    std::vector<bool> block_has_or_xor(fact.size(), false);
+    rhr_status_e status = innerBlockAmbiguity(q, fact, block_has_q_pos, block_has_q_neg, block_has_or_xor);
+    if (status == AMBIGOUS)
+        return AMBIGOUS;
+    if (isInterBlockAmbiguity(fact, block_has_q_pos, block_has_q_neg, block_has_or_xor))
+        return AMBIGOUS;
+    return status;
+}
+
+bool Resolver::evalLHS(std::vector<TokenBlock> lhs)
+{
+    for (TokenBlock &tokenBlock : lhs)
+    {
+        for (TokenEffect &token : tokenBlock)
+        {
+            if (token.type >= 'A' && token.type <= 'Z')
+            {
+                if (token.effect != true)
+                    token.effect = (prove(token.type) == R_TRUE);
+            }
+        }
+    }
+    resolveLeft(lhs);
+    return lhs.size() == 1 && lhs[0].size() == 1 && lhs[0][0].effect;
+}
+
+bool Resolver::isMentionQ(char q, const std::vector<TokenBlock> &rhr)
+{
+    for (auto &blk : rhr)
+    {
+        for (size_t i = 0; i < blk.size(); ++i)
+        {
+            if (blk[i].type == q)
+                return true;
+        }
+    }
+    return false;
+}
+
+rhr_value_e Resolver::prove(char q)
+{
+    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
+    if (memoIt != memo.end())
+        return memoIt->second;
+
+    auto initiaTrueIt = initial_facts.find(q);
+    if (initiaTrueIt != initial_facts.end())
+        return memo[q] = R_TRUE;
+
+    if (visiting.count(q))
+        return R_FALSE;
+    visiting.insert(q);
+
+    bool support_true = false;
+    bool support_false = false;
+
+    for (auto &fact : facts)
+    {
+        if (!isMentionQ(q, std::get<2>(fact)))
+            continue;
+        rhr_status_e status = getStatus(q, std::get<2>(fact));
+        if (status == AMBIGOUS)
+            continue;
+        std::vector<TokenBlock> lhs = std::get<1>(fact);
+        if (evalLHS(lhs))
+        {
+            if (status == TRUE)
+                support_true = true;
+            else if (status == NOT)
+                support_false = true;
+        }
+        if (support_true && support_false)
+        {
+            visiting.erase(q);
+            return memo[q] = R_AMBIGOUS;
+        }
+    }
+
+    visiting.erase(q);
+    if (support_true && !support_false)
+        return memo[q] = R_TRUE;
+    if (support_false && !support_true)
+        return memo[q] = R_FALSE;
+    return memo[q] = R_FALSE; // default-false when no support
+}
+
+void Resolver::resolveQuerie()
 {
     for (auto &q : querie)
     {
-		rhr_value_e higher_value = R_FALSE;
-        for (auto &fact : facts)
-        {
-            // Skip rules whose RHS does not reference q (or !q)
-            bool rhs_mentions_q = false;
-            for (auto &blk : std::get<2>(fact))
-            {
-                for (size_t i = 0; i < blk.size(); ++i)
-                {
-                    if (blk[i].type == q)
-                    { rhs_mentions_q = true; break; }
-                    if (blk[i].type == '!' && i + 1 < blk.size() && blk[i + 1].type == q)
-                    { rhs_mentions_q = true; break; }
-                }
-                if (rhs_mentions_q) break;
-            }
-            if (!rhs_mentions_q)
-                continue;
-
-            rhr_status_e status = getStatus(q, std::get<2>(fact));
-            if ((status == TRUE && std::get<1>(fact).at(0).at(0).effect == true) ||
-                (status == NOT && std::get<1>(fact).at(0).at(0).effect == false))
-            {
-				higher_value = R_TRUE;
-                break;
-            }
-            else if (status == AMBIGOUS)
-				higher_value = R_AMBIGOUS;
-        }
-		if (higher_value == R_TRUE)
-            std::cout << q << " is " << "true" << std::endl;
-		else if (higher_value == R_AMBIGOUS)
-            std::cout << q << " is " << "ambigous" << std::endl;
+        visiting.clear();
+        rhr_value_e res = prove(q);
+        if (res == R_TRUE)
+            std::cout << q << " is true" << std::endl;
+        else if (res == R_AMBIGOUS)
+            std::cout << q << " is ambigous" << std::endl;
         else
-            std::cout << q << " is " << "false" << std::endl;
+            std::cout << q << " is false" << std::endl;
     }
-}
-
-void Resolver::resolve(std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &facts)
-{
-	for (std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>> &fact : facts)
-	{
-		resolveLeft(std::get<1>(fact));
-		printFact(fact);
-	}
-}
-
-void Resolver::printFact(std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>> &fact)
-{
-	std::cout << (std::get<1>(fact)).at(0).at(0).effect << " ";
-	std::cout << std::get<0>(fact).type << " ";
-	for (auto &v : std::get<2>(fact))
-	{
-		for (auto &t : v)
-		{
-			std::cout << t.type;
-		}
-	}
-	std::cout << std::endl;
 }

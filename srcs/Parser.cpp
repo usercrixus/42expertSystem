@@ -163,3 +163,8 @@ std::set<char> &Parser::getQuerie()
 {
     return querie;
 }
+
+std::set<char> &Parser::getInitialFact()
+{
+    return initial_facts;
+}

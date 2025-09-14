@@ -28,4 +28,5 @@ public:
 
     std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &getFacts();
     std::set<char> &getQuerie();
+    std::set<char> &getInitialFact();
 };
