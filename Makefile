@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX      := g++
-CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -O2 -Isrcs
+CXXFLAGS := -std=c++17 -Wall -Wextra -Werror -g3 -Isrcs
 
 # Project name
 TARGET   := expert
@@ -8,7 +8,9 @@ TARGET   := expert
 # Source files (inside srcs/)
 SRCS := srcs/main.cpp \
         srcs/Parser.cpp \
-        srcs/TokenBlock.cpp
+        srcs/TokenBlock.cpp \
+        srcs/TokenEffect.cpp \
+        srcs/Resolver.cpp \
 
 # Object files (replace .cpp with .o)
 OBJS := $(SRCS:.cpp=.o)

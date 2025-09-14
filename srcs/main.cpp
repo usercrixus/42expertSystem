@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include "Resolver.hpp"
 
 int main(int argc, char **argv)
 {
@@ -11,19 +12,9 @@ int main(int argc, char **argv)
     }
 
     Parser parser(argv[1]);
-    if (parser.parse() != 0) {
-        return 1; // parser already printed the error
-    }
-
-    const auto& initial = parser.getInitialFacts();
-    const auto& queries = parser.getQueries();
-
-    // For now: a query is True iff it is in initial facts; otherwise False.
-    // (You’ll replace this with your inference later.)
-    for (char q : queries) {
-        bool v = (initial.find(q) != initial.end());
-        std::cout << q << ": " << (v ? 'T' : 'F') << "\n";
-    }
-
+    if (parser.parse() != 0)
+        return 1;
+    Resolver resolver;
+    resolver.resolve(parser.getFacts());
     return 0;
 }

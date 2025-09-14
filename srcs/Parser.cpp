@@ -47,41 +47,56 @@ void Parser::parseQuerie(std::string line)
 	}
 }
 
-void Parser::parseClassic(std::string line, std::vector<TokenBlock> &fact_line)
+void Parser::parseClassic(std::string line, std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>> &fact_line)
 {
 	std::string buff;
-	if (fact_line.empty())
-		fact_line.emplace_back(priority);
+	int side = 1;
+	std::get<1>(fact_line).emplace_back(priority);
 	for (size_t i = 0; i < line.size(); i++)
 	{
 		if (line[i] == '#')
 			break;
-		else if (line[i] == ' ')
-		{
+		else if (line[i] == ' ' || line[i] == '\n')
 			buff.clear();
-			continue;
+		else
+		{
+			std::vector<TokenBlock> &tokenSide = (side == 1) ? std::get<1>(fact_line) : std::get<2>(fact_line);
+			buff.push_back(line[i]);
+			if (buff == "(")
+			{
+				tokenSide.emplace_back(++priority);
+				buff.clear();
+			}
+			else if (buff == ")")
+			{
+				tokenSide.emplace_back(--priority);
+				buff.clear();
+			}
+			else if (buff == "!" || buff == "+" || buff == "|" || buff == "^")
+			{
+				if (tokenSide.empty())
+					tokenSide.emplace_back(priority);
+				tokenSide.back().emplace_back(TokenEffect(buff[0]));
+				buff.clear();
+			}
+			else if (buff == "=>" || buff == "<=>")
+			{
+				std::get<0>(fact_line) = TokenEffect(buff[1]);
+				side = 2;
+				if (std::get<2>(fact_line).empty())
+					std::get<2>(fact_line).emplace_back(priority);
+				buff.clear();
+			}
+			else if (buff.size() == 1 && buff[0] >= 'A' && buff[0] <= 'Z')
+			{
+				if (tokenSide.empty())
+					tokenSide.emplace_back(priority);
+				tokenSide.back().emplace_back(TokenEffect(buff[0]));
+				buff.clear();
+			}
+			else if (buff.size() >= 3)
+				throw std::logic_error("Input file format do not manage: " + buff + " token");
 		}
-		buff.push_back(line[i]);
-		if (buff == "(")
-			fact_line.emplace_back(++priority);
-		else if (buff == ")")
-			fact_line.emplace_back(--priority);
-		else if (buff == "!")
-			fact_line.back().emplace_back(TokenEffect('!'));
-		else if (buff == "+")
-			fact_line.back().emplace_back(TokenEffect('+'));
-		else if (buff == "|")
-			fact_line.back().emplace_back(TokenEffect('|'));
-		else if (buff == "^")
-			fact_line.back().emplace_back(TokenEffect('^'));
-		else if (buff == "=>")
-			fact_line.back().emplace_back(TokenEffect('>'));
-		else if (buff == "<=>")
-			fact_line.back().emplace_back(TokenEffect('='));
-		else if (buff.size() == 1 && buff[0] >= 'A' && buff[0] <= 'Z')
-			fact_line.back().emplace_back(TokenEffect(buff[0]));
-		else if (buff.size() >= 3)
-			throw std::logic_error("Input file format do not manage: " + buff + " token");
 	}
 }
 
@@ -90,23 +105,35 @@ void Parser::parsingManager(std::ifstream &in)
 	std::string line;
 	while (std::getline(in, line))
 	{
-		if (line[0] == '=')
-			parseFact(line);
-		else if (line[0] == '?')
-			parseQuerie(line);
-		else
+		line.erase(0, line.find_first_not_of(" "));
+		if (line.size() > 0 && line[0] != '#')
 		{
-			facts.emplace_back();
-			parseClassic(line, facts.back());
+			if (line[0] == '=')
+				parseFact(line);
+			else if (line[0] == '?')
+				parseQuerie(line);
+			else
+			{
+				facts.emplace_back(TokenEffect(0), std::vector<TokenBlock>(), std::vector<TokenBlock>());
+				parseClassic(line, facts.back());
+			}
 		}
 	}
 }
 
 void Parser::finalizeParsing()
 {
-	for (std::vector<TokenBlock> &fact : facts)
+	for (std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>> &fact : facts)
 	{
-		for (TokenBlock &token_block : fact)
+		for (TokenBlock &token_block : std::get<1>(fact))
+		{
+			for (TokenEffect &token_effect : token_block)
+			{
+				if (initial_facts.find(token_effect.type) != initial_facts.end())
+					token_effect.effect = true;
+			}
+		}
+		for (TokenBlock &token_block : std::get<2>(fact))
 		{
 			for (TokenEffect &token_effect : token_block)
 			{
@@ -125,4 +152,9 @@ int Parser::parse()
 	parsingManager(in);
 	finalizeParsing();
 	return 0;
+}
+
+std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &Parser::getFacts()
+{
+	return facts;
 }
