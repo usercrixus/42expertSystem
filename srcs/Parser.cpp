@@ -158,3 +158,8 @@ std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBl
 {
 	return facts;
 }
+
+std::set<char> &Parser::getQuerie()
+{
+    return querie;
+}

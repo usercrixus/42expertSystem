@@ -16,5 +16,6 @@ int main(int argc, char **argv)
         return 1;
     Resolver resolver;
     resolver.resolve(parser.getFacts());
+    resolver.resolveQuerie(parser.getQuerie(), parser.getFacts());
     return 0;
 }
