@@ -82,6 +82,8 @@ rhr_status_e Resolver::innerBlockAmbiguity(char q, const std::vector<TokenBlock>
         if (block_has_or_xor[i] && (block_has_q_pos[i] || block_has_q_neg[i]))
             return AMBIGOUS;
     }
+    if (found_q_neg && found_q_pos)
+        return AMBIGOUS;
     if (found_q_pos)
         return TRUE;
     if (found_q_neg)
@@ -146,8 +148,8 @@ rhr_value_e Resolver::prove(char q)
         return R_FALSE;
     visiting.insert(q);
 
-    bool support_true = false;
-    bool support_false = false;
+    bool isFactTrue = false;
+    bool isFactFalse = false;
 
     for (auto &fact : facts)
     {
@@ -160,23 +162,18 @@ rhr_value_e Resolver::prove(char q)
         if (evalLHS(lhs))
         {
             if (status == TRUE)
-                support_true = true;
+                isFactTrue = true;
             else if (status == NOT)
-                support_false = true;
+                isFactFalse = true;
         }
-        if (support_true && support_false)
+        if (isFactTrue && isFactFalse)
         {
             visiting.erase(q);
             return memo[q] = R_AMBIGOUS;
         }
     }
-
     visiting.erase(q);
-    if (support_true && !support_false)
-        return memo[q] = R_TRUE;
-    if (support_false && !support_true)
-        return memo[q] = R_FALSE;
-    return memo[q] = R_FALSE; // default-false when no support
+    return isFactTrue ? memo[q] = R_TRUE : memo[q] = R_FALSE;
 }
 
 void Resolver::resolveQuerie()

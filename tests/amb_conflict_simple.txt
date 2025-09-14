@@ -1,0 +1,10 @@
+# Ambiguous due to conflicting rules with same antecedent
+# Expect:
+# Q: ambigous (A => Q and A => !Q, with A true)
+
+A => Q
+A => !Q
+
+= A
+? Q
+

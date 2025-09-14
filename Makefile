@@ -30,7 +30,10 @@ test:
 	./expert tests/undefined_cycle.txt
 	./expert tests/subject.txt
 	./expert tests/undefined_xor.txt
-        
+	./expert tests/amb_conflict_simple.txt
+	./expert tests/amb_conflict_multi_path.txt
+	./expert tests/or_xor_skip_q.txt
+	./expert tests/amb_chain.txt
 
 clean:
 	rm -f $(OBJS) $(TARGET)
