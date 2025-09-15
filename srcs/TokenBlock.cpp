@@ -84,3 +84,13 @@ bool TokenBlock::execute()
         throw std::logic_error("TokenBlock::execute: reduction did not converge");
     return (*this)[0].effect;
 }
+
+unsigned int TokenBlock::getPriority() const
+{
+    return priority;
+}
+
+void TokenBlock::setPriority(unsigned int p)
+{
+    priority = p;
+}

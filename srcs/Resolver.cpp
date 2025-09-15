@@ -153,23 +153,25 @@ rhr_value_e Resolver::prove(char q)
 
     for (auto &fact : facts)
     {
-        if (!isMentionQ(q, std::get<2>(fact)))
-            continue;
-        rhr_status_e status = getStatus(q, std::get<2>(fact));
-        if (status == AMBIGOUS)
-            continue;
-        std::vector<TokenBlock> lhs = std::get<1>(fact);
-        if (evalLHS(lhs))
+        if (isMentionQ(q, std::get<2>(fact)))
         {
-            if (status == TRUE)
-                isFactTrue = true;
-            else if (status == NOT)
-                isFactFalse = true;
-        }
-        if (isFactTrue && isFactFalse)
-        {
-            visiting.erase(q);
-            return memo[q] = R_AMBIGOUS;
+            rhr_status_e status = getStatus(q, std::get<2>(fact));
+            if (status != AMBIGOUS)
+            {
+                std::vector<TokenBlock> lhs = std::get<1>(fact);
+                if (evalLHS(lhs))
+                {
+                    if (status == TRUE)
+                        isFactTrue = true;
+                    else if (status == NOT)
+                        isFactFalse = true;
+                }
+                if (isFactTrue && isFactFalse)
+                {
+                    visiting.erase(q);
+                    return memo[q] = R_AMBIGOUS;
+                }
+            }
         }
     }
     visiting.erase(q);

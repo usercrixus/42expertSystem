@@ -11,6 +11,6 @@ public:
     ~TokenBlock();
     void executeNot();
     bool execute();
-    unsigned int getPriority() const { return priority; }
-    void setPriority(unsigned int p) { priority = p; }
+    unsigned int getPriority() const;
+    void setPriority(unsigned int p);
 };
