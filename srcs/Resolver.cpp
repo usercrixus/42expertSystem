@@ -150,12 +150,12 @@ rhr_value_e Resolver::prove(char q)
 
     bool isFactTrue = false;
     bool isFactFalse = false;
-
+    rhr_status_e status = AMBIGOUS;
     for (auto &fact : facts)
     {
         if (isMentionQ(q, std::get<2>(fact)))
         {
-            rhr_status_e status = getStatus(q, std::get<2>(fact));
+            status = getStatus(q, std::get<2>(fact));
             if (status != AMBIGOUS)
             {
                 std::vector<TokenBlock> lhs = std::get<1>(fact);
@@ -175,6 +175,8 @@ rhr_value_e Resolver::prove(char q)
         }
     }
     visiting.erase(q);
+    if (status == AMBIGOUS)
+        return R_AMBIGOUS;
     return isFactTrue ? memo[q] = R_TRUE : memo[q] = R_FALSE;
 }
 
