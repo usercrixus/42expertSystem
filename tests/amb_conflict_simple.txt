@@ -3,8 +3,8 @@
 # Q: ambigous (A => Q and A => !Q, with A true)
 
 A => Q
-A => !Q
+B => !Q
 
-= A
+= A B
 ? Q
 
