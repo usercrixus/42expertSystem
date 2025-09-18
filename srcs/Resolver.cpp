@@ -150,7 +150,7 @@ rhr_value_e Resolver::prove(char q)
 
     bool isFactTrue = false;
     bool isFactFalse = false;
-    rhr_status_e status = AMBIGOUS;
+    rhr_status_e status = FALSE;
     for (auto &fact : facts)
     {
         if (isMentionQ(q, std::get<2>(fact)))

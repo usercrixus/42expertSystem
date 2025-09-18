@@ -9,7 +9,8 @@ enum rhr_status_e
 {
 	NOT,
 	AMBIGOUS,
-	TRUE
+	TRUE,
+	FALSE
 };
 
 enum rhr_value_e
