@@ -1,7 +1,7 @@
 #include "Resolver.hpp"
 #include <iostream>
 
-Resolver::Resolver(std::set<char> querie, std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &facts, std::set<char> initial_facts)
+Resolver::Resolver(std::set<char> querie, std::vector<LogicRule> &facts, std::set<char> initial_facts)
     : querie(querie), facts(facts), initial_facts(initial_facts)
 {
 }
@@ -153,12 +153,12 @@ rhr_value_e Resolver::prove(char q)
     rhr_status_e status = FALSE;
     for (auto &fact : facts)
     {
-        if (isMentionQ(q, std::get<2>(fact)))
+        if (isMentionQ(q, fact.rhs))
         {
-            status = getStatus(q, std::get<2>(fact));
+            status = getStatus(q, fact.rhs);
             if (status != AMBIGOUS)
             {
-                std::vector<TokenBlock> lhs = std::get<1>(fact);
+                std::vector<TokenBlock> lhs = fact.lhs;
                 if (evalLHS(lhs))
                 {
                     if (status == TRUE)

@@ -47,11 +47,11 @@ void Parser::parseQuerie(std::string line)
 	}
 }
 
-void Parser::parseClassic(std::string line, std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>> &fact_line)
+void Parser::parseClassic(std::string line, LogicRule &fact_line)
 {
 	std::string buff;
 	int side = 1;
-	std::get<1>(fact_line).emplace_back(priority);
+	fact_line.lhs.emplace_back(priority);
 	for (size_t i = 0; i < line.size(); i++)
 	{
 		if (line[i] == '#')
@@ -60,7 +60,7 @@ void Parser::parseClassic(std::string line, std::tuple<TokenEffect, std::vector<
 			buff.clear();
 		else
 		{
-			std::vector<TokenBlock> &tokenSide = (side == 1) ? std::get<1>(fact_line) : std::get<2>(fact_line);
+			std::vector<TokenBlock> &tokenSide = (side == 1) ? fact_line.lhs : fact_line.rhs;
 			buff.push_back(line[i]);
 			if (buff == "(")
 			{
@@ -81,10 +81,10 @@ void Parser::parseClassic(std::string line, std::tuple<TokenEffect, std::vector<
 			}
 			else if (buff == "=>" || buff == "<=>")
 			{
-				std::get<0>(fact_line) = TokenEffect(buff[1]);
+				fact_line.arrow = TokenEffect(buff[1]);
 				side = 2;
-				if (std::get<2>(fact_line).empty())
-					std::get<2>(fact_line).emplace_back(priority);
+				if (fact_line.rhs.empty())
+					fact_line.rhs.emplace_back(priority);
 				buff.clear();
 			}
 			else if (buff.size() == 1 && buff[0] >= 'A' && buff[0] <= 'Z')
@@ -114,7 +114,7 @@ void Parser::parsingManager(std::ifstream &in)
 				parseQuerie(line);
 			else
 			{
-				facts.emplace_back(TokenEffect(0), std::vector<TokenBlock>(), std::vector<TokenBlock>());
+				facts.emplace_back();
 				parseClassic(line, facts.back());
 			}
 		}
@@ -123,9 +123,9 @@ void Parser::parsingManager(std::ifstream &in)
 
 void Parser::finalizeParsing()
 {
-	for (std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>> &fact : facts)
+	for (LogicRule &fact : facts)
 	{
-		for (TokenBlock &token_block : std::get<1>(fact))
+		for (TokenBlock &token_block : fact.lhs)
 		{
 			for (TokenEffect &token_effect : token_block)
 			{
@@ -133,7 +133,7 @@ void Parser::finalizeParsing()
 					token_effect.effect = true;
 			}
 		}
-		for (TokenBlock &token_block : std::get<2>(fact))
+		for (TokenBlock &token_block : fact.rhs)
 		{
 			for (TokenEffect &token_effect : token_block)
 			{
@@ -151,16 +151,20 @@ int Parser::parse()
 		return (std::cerr << "Error: cannot open file " << this->input_path << "\n", 1);
 	parsingManager(in);
 	finalizeParsing();
+	std::cout << "Parsing completed successfully.\n";
+	for (const LogicRule &f : facts)
+		std::cout << f << "\n";
 	return 0;
 }
 
-std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &Parser::getFacts()
+std::vector<LogicRule> &Parser::getFacts()
 {
 	return facts;
 }
 
 std::set<char> &Parser::getQuerie()
 {
+
     return querie;
 }
 
