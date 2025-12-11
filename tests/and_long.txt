@@ -1,0 +1,8 @@
+# Multiple and
+# Expect :
+# D true
+
+A + ( B + C ) => D
+
+= A B C
+? D

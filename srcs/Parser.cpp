@@ -51,7 +51,7 @@ void Parser::parseClassic(std::string line, LogicRule &fact_line)
 {
 	std::string buff;
 	int side = 1;
-	fact_line.lhs.emplace_back(priority);
+	// Don't pre-create initial block; let first token create it at correct priority
 	for (size_t i = 0; i < line.size(); i++)
 	{
 		if (line[i] == '#')
@@ -64,17 +64,17 @@ void Parser::parseClassic(std::string line, LogicRule &fact_line)
 			buff.push_back(line[i]);
 			if (buff == "(")
 			{
-				tokenSide.emplace_back(++priority);
+				++priority; // enter higher-priority group
 				buff.clear();
 			}
 			else if (buff == ")")
 			{
-				tokenSide.emplace_back(--priority);
+				--priority; // exit group; do not create an empty block
 				buff.clear();
 			}
 			else if (buff == "!" || buff == "+" || buff == "|" || buff == "^")
 			{
-				if (tokenSide.empty())
+				if (tokenSide.empty() || tokenSide.back().getPriority() != static_cast<unsigned int>(priority))
 					tokenSide.emplace_back(priority);
 				tokenSide.back().emplace_back(TokenEffect(buff[0]));
 				buff.clear();
@@ -89,7 +89,7 @@ void Parser::parseClassic(std::string line, LogicRule &fact_line)
 			}
 			else if (buff.size() == 1 && buff[0] >= 'A' && buff[0] <= 'Z')
 			{
-				if (tokenSide.empty())
+				if (tokenSide.empty() || tokenSide.back().getPriority() != static_cast<unsigned int>(priority))
 					tokenSide.emplace_back(priority);
 				tokenSide.back().emplace_back(TokenEffect(buff[0]));
 				buff.clear();

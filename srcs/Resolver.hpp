@@ -51,5 +51,5 @@ public:
 	Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts);
 	~Resolver();
 	void resolveLeft(std::vector<TokenBlock> &fact);
-	void resolveQuerie();
+	void resolveQuerie(bool print_trace = true);
 };

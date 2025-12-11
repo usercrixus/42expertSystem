@@ -29,11 +29,30 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
                 fact.erase(fact.begin() + i);
             }
             else
-                fact[i].setPriority(0);
+            {
+                // If this was the first block and there's a following block,
+                // prepend result to it so operators there have a left operand.
+                if (fact.size() > 1)
+                {
+                    fact[1].insert(fact[1].begin(), fact[i][0]);
+                    fact.erase(fact.begin());
+                    // Index i now points to what was fact[1]; no need to adjust
+                }
+                else
+                {
+                    fact[i].setPriority(0);
+                }
+            }
         }
     }
     if (fact.size() > 1)
         resolveLeft(fact);
+    else if (fact.size() == 1 && fact[0].size() > 1)
+    {
+        // Final reduction at base priority
+        fact[0].setPriority(0);
+        fact[0].execute();
+    }
 }
 
 rhr_value_e Resolver::prove(char q)
@@ -97,14 +116,22 @@ void Resolver::recordInitialFact(char q)
 
 void Resolver::recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired)
 {
-    std::string desc = "Rule: " + rule->toString();
-    if (lhs_fired)
-        desc += " (LHS evaluated to true)";
-    else
-        desc += " (LHS evaluated to false, rule not applied)";
+    if (!lhs_fired)
+        return;  // Don't record rules that didn't fire
     
-    rhr_value_e concl = lhs_fired ? (rule->rhs_negated ? R_FALSE : R_TRUE) : R_AMBIGOUS;
-    current_trace.push_back({desc, q, rule, concl, lhs_fired});
+    std::string desc = "Rule: " + rule->toString();
+    desc += rule->rhs_negated ? " shows " : " shows ";
+    desc += std::string(1, q);
+    desc += rule->rhs_negated ? " false" : " true";
+    
+    // Add origin information if the rule was deduced
+    if (rule->origin)
+    {
+        desc += " (deduced from rule: " + rule->origin->toString() + ")";
+    }
+    
+    rhr_value_e concl = rule->rhs_negated ? R_FALSE : R_TRUE;
+    current_trace.push_back({desc, q, rule, concl, true});
 }
 
 void Resolver::recordMemoHit(char q, rhr_value_e val)
@@ -118,12 +145,19 @@ void Resolver::recordMemoHit(char q, rhr_value_e val)
 
 void Resolver::printTrace(char q, rhr_value_e result)
 {
-    std::cout << "\n=== Reasoning for " << q << " ===\n";
+    std::cout << "=== Reasoning for " << q << " ===\n";
+    
+    if (current_trace.empty())
+    {
+        std::cout << "No assertion proves " << q << ", false by default.";
+        return;
+    }
     for (const auto &step : current_trace)
     {
         if (step.symbol == q || step.lhs_fired)
             std::cout << "  " << step.description << "\n";
     }
+    
     std::string resultStr = (result == R_TRUE ? "true" : result == R_FALSE ? "false" : "ambiguous");
     std::cout << "Conclusion: " << q << " is " << resultStr << "\n";
 }
@@ -145,13 +179,28 @@ bool Resolver::evalLHS(std::vector<TokenBlock> lhs)
     return lhs.size() == 1 && lhs[0].size() == 1 && lhs[0][0].effect;
 }
 
-void Resolver::resolveQuerie()
+void Resolver::resolveQuerie(bool print_trace)
 {
+    // Display initial facts
+    if (!initial_facts.empty() && print_trace)
+    {
+        std::cout << "Initial facts: ";
+        bool first = true;
+        for (char fact : initial_facts)
+        {
+            if (!first) std::cout << ", ";
+            std::cout << fact;
+            first = false;
+        }
+        std::cout << "\n";
+    }
     for (auto &q : querie)
     {
         visiting.clear();
         current_trace.clear();
+        std::cout << "Resolving " << q << "...\n";
         rhr_value_e res = prove(q);
-        printTrace(q, res);
+        if (print_trace)
+            printTrace(q, res);
     }
 }
