@@ -1,0 +1,10 @@
+# Simple équivalence
+# Expected:
+# B: true (A <=> B with A true)
+# C: true (C <=> A with A true)
+
+A => !E
+( A | B ) + ( C | D ) <=> E | ( F + G )
+
+= A D
+? F G 

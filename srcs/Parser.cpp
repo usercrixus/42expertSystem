@@ -151,15 +151,27 @@ int Parser::parse()
 		return (std::cerr << "Error: cannot open file " << this->input_path << "\n", 1);
 	parsingManager(in);
 	finalizeParsing();
-	std::cout << "Parsing completed successfully.\n";
-	for (const LogicRule &f : facts)
-		std::cout << f << "\n";
+	expandRules();
 	return 0;
+}
+
+void Parser::expandRules()
+{
+	for (const LogicRule &rule : facts)
+	{
+		std::vector<BasicRule> basics = rule.deduceBasics();
+		basic_rules.insert(basic_rules.end(), basics.begin(), basics.end());
+	}
 }
 
 std::vector<LogicRule> &Parser::getFacts()
 {
 	return facts;
+}
+
+std::vector<BasicRule> &Parser::getBasicRules()
+{
+	return basic_rules;
 }
 
 std::set<char> &Parser::getQuerie()

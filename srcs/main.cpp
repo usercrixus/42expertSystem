@@ -14,7 +14,15 @@ int main(int argc, char **argv)
     Parser parser(argv[1]);
     if (parser.parse() != 0)
         return 1;
-    Resolver resolver(parser.getQuerie(), parser.getFacts(), parser.getInitialFact());
-    resolver.resolveQuerie();
+    std::cout << "Initial Rules: ";
+    for (const LogicRule &rule : parser.getFacts())
+        std::cout << rule << std::endl;
+    std::cout << "Deduced Basic Rules:\n";
+    for (const BasicRule &rule : parser.getBasicRules()) {
+        std::cout << rule << "\n";
+        std::cout << "\\-> From Logic Rule :" << *(rule.origin) << "\n\n";
+    }
+    //Resolver resolver(parser.getQuerie(), parser.getBasicRules(), parser.getInitialFact());
+    //resolver.resolveQuerie();
     return 0;
 }

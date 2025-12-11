@@ -1,2 +1,4 @@
 *.o
+expert
+expert.exe
 .Notes.txt

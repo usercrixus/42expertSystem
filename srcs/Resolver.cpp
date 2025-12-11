@@ -1,8 +1,8 @@
 #include "Resolver.hpp"
 #include <iostream>
 
-Resolver::Resolver(std::set<char> querie, std::vector<LogicRule> &facts, std::set<char> initial_facts)
-    : querie(querie), facts(facts), initial_facts(initial_facts)
+Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts)
+    : querie(querie), basic_rules(basic_rules), initial_facts(initial_facts)
 {
 }
 
@@ -36,72 +36,96 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
         resolveLeft(fact);
 }
 
-bool Resolver::isInterBlockAmbiguity(const std::vector<TokenBlock> &fact, std::vector<bool> &block_has_q_pos, std::vector<bool> &block_has_q_neg, std::vector<bool> &block_has_or_xor)
+rhr_value_e Resolver::prove(char q)
 {
-    for (size_t i = 0; i < fact.size(); ++i)
+    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
+    if (memoIt != memo.end())
     {
-        if (block_has_or_xor[i])
-        {
-            if ((i > 0 && (block_has_q_pos[i - 1] || block_has_q_neg[i - 1])) ||
-                (i + 1 < fact.size() && (block_has_q_pos[i + 1] || block_has_q_neg[i + 1])))
-            {
-                return true;
-            }
-        }
+        recordMemoHit(q, memoIt->second);
+        return memoIt->second;
     }
-    return false;
-}
 
-rhr_status_e Resolver::innerBlockAmbiguity(char q, const std::vector<TokenBlock> &fact, std::vector<bool> &block_has_q_pos, std::vector<bool> &block_has_q_neg, std::vector<bool> &block_has_or_xor)
-{
-    bool found_q_pos = false;
-    bool found_q_neg = false;
-    for (size_t i = 0; i < fact.size(); ++i)
+    auto initiaTrueIt = initial_facts.find(q);
+    if (initiaTrueIt != initial_facts.end())
     {
-        const TokenBlock &tokenBlock = fact[i];
-        for (size_t j = 0; j < tokenBlock.size(); ++j)
+        recordInitialFact(q);
+        return memo[q] = R_TRUE;
+    }
+
+    if (visiting.count(q))
+        return R_FALSE;
+    visiting.insert(q);
+
+    bool isFactTrue = false;
+    bool isFactFalse = false;
+    
+    for (const BasicRule &rule : basic_rules)
+    {
+        if (rule.rhs_symbol == q)
         {
-            char token = tokenBlock[j].type;
-            if (token == '|' || token == '^')
-                block_has_or_xor[i] = true;
-            else if (token == q)
+            std::vector<TokenBlock> lhs = rule.lhs;
+            bool fired = evalLHS(lhs);
+            recordRuleConsidered(q, &rule, fired);
+            
+            if (fired)
             {
-                bool is_neg = (j > 0 && tokenBlock[j - 1].type == '!');
-                if (is_neg)
-                {
-                    found_q_neg = true;
-                    block_has_q_neg[i] = true;
-                }
+                if (!rule.rhs_negated)
+                    isFactTrue = true;
                 else
+                    isFactFalse = true;
+                    
+                if (isFactTrue && isFactFalse)
                 {
-                    found_q_pos = true;
-                    block_has_q_pos[i] = true;
+                    visiting.erase(q);
+                    return memo[q] = R_AMBIGOUS;
                 }
             }
         }
-        if (block_has_or_xor[i] && (block_has_q_pos[i] || block_has_q_neg[i]))
-            return AMBIGOUS;
     }
-    if (found_q_neg && found_q_pos)
-        return AMBIGOUS;
-    if (found_q_pos)
-        return TRUE;
-    if (found_q_neg)
-        return NOT;
-    return AMBIGOUS;
+    
+    visiting.erase(q);
+    return isFactTrue ? memo[q] = R_TRUE : memo[q] = R_FALSE;
 }
 
-rhr_status_e Resolver::getStatus(char q, const std::vector<TokenBlock> &fact)
+void Resolver::recordInitialFact(char q)
 {
-    std::vector<bool> block_has_q_pos(fact.size(), false);
-    std::vector<bool> block_has_q_neg(fact.size(), false);
-    std::vector<bool> block_has_or_xor(fact.size(), false);
-    rhr_status_e status = innerBlockAmbiguity(q, fact, block_has_q_pos, block_has_q_neg, block_has_or_xor);
-    if (status == AMBIGOUS)
-        return AMBIGOUS;
-    if (isInterBlockAmbiguity(fact, block_has_q_pos, block_has_q_neg, block_has_or_xor))
-        return AMBIGOUS;
-    return status;
+    current_trace.push_back({
+        std::string("Initial fact: ") + q + " is given as true",
+        q, nullptr, R_TRUE, false
+    });
+}
+
+void Resolver::recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired)
+{
+    std::string desc = "Rule: " + rule->toString();
+    if (lhs_fired)
+        desc += " (LHS evaluated to true)";
+    else
+        desc += " (LHS evaluated to false, rule not applied)";
+    
+    rhr_value_e concl = lhs_fired ? (rule->rhs_negated ? R_FALSE : R_TRUE) : R_AMBIGOUS;
+    current_trace.push_back({desc, q, rule, concl, lhs_fired});
+}
+
+void Resolver::recordMemoHit(char q, rhr_value_e val)
+{
+    std::string valStr = (val == R_TRUE ? "true" : val == R_FALSE ? "false" : "ambiguous");
+    current_trace.push_back({
+        "Already resolved: " + std::string(1, q) + " = " + valStr,
+        q, nullptr, val, false
+    });
+}
+
+void Resolver::printTrace(char q, rhr_value_e result)
+{
+    std::cout << "\n=== Reasoning for " << q << " ===\n";
+    for (const auto &step : current_trace)
+    {
+        if (step.symbol == q || step.lhs_fired)
+            std::cout << "  " << step.description << "\n";
+    }
+    std::string resultStr = (result == R_TRUE ? "true" : result == R_FALSE ? "false" : "ambiguous");
+    std::cout << "Conclusion: " << q << " is " << resultStr << "\n";
 }
 
 bool Resolver::evalLHS(std::vector<TokenBlock> lhs)
@@ -121,76 +145,13 @@ bool Resolver::evalLHS(std::vector<TokenBlock> lhs)
     return lhs.size() == 1 && lhs[0].size() == 1 && lhs[0][0].effect;
 }
 
-bool Resolver::isMentionQ(char q, const std::vector<TokenBlock> &rhr)
-{
-    for (auto &blk : rhr)
-    {
-        for (size_t i = 0; i < blk.size(); ++i)
-        {
-            if (blk[i].type == q)
-                return true;
-        }
-    }
-    return false;
-}
-
-rhr_value_e Resolver::prove(char q)
-{
-    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
-    if (memoIt != memo.end())
-        return memoIt->second;
-
-    auto initiaTrueIt = initial_facts.find(q);
-    if (initiaTrueIt != initial_facts.end())
-        return memo[q] = R_TRUE;
-
-    if (visiting.count(q))
-        return R_FALSE;
-    visiting.insert(q);
-
-    bool isFactTrue = false;
-    bool isFactFalse = false;
-    rhr_status_e status = FALSE;
-    for (auto &fact : facts)
-    {
-        if (isMentionQ(q, fact.rhs))
-        {
-            status = getStatus(q, fact.rhs);
-            if (status != AMBIGOUS)
-            {
-                std::vector<TokenBlock> lhs = fact.lhs;
-                if (evalLHS(lhs))
-                {
-                    if (status == TRUE)
-                        isFactTrue = true;
-                    else if (status == NOT)
-                        isFactFalse = true;
-                }
-                if (isFactTrue && isFactFalse)
-                {
-                    visiting.erase(q);
-                    return memo[q] = R_AMBIGOUS;
-                }
-            }
-        }
-    }
-    visiting.erase(q);
-    if (status == AMBIGOUS)
-        return R_AMBIGOUS;
-    return isFactTrue ? memo[q] = R_TRUE : memo[q] = R_FALSE;
-}
-
 void Resolver::resolveQuerie()
 {
     for (auto &q : querie)
     {
         visiting.clear();
+        current_trace.clear();
         rhr_value_e res = prove(q);
-        if (res == R_TRUE)
-            std::cout << q << " is true" << std::endl;
-        else if (res == R_AMBIGOUS)
-            std::cout << q << " is ambigous" << std::endl;
-        else
-            std::cout << q << " is false" << std::endl;
+        printTrace(q, res);
     }
 }

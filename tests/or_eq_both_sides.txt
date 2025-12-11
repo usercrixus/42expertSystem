@@ -1,0 +1,12 @@
+# OR équivalence
+# Expected:
+# B: ambiguous (Nothing can prove B is true or that B is false)
+# C: true (A | B <=> C with A true)
+# D: true (C => D | E with C true et E false car C => !E)
+
+A | B <=> C
+C <=> D | E
+C => !E
+
+= A
+? B C D

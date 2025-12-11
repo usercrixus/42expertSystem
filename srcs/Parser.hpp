@@ -10,9 +10,11 @@ class Parser
 private:
     std::string input_path;
     std::vector<LogicRule> facts;
+    std::vector<BasicRule> basic_rules;
     std::set<char> initial_facts;
     std::set<char> querie;
     unsigned int priority;
+    void expandRules();
 
 public:
     Parser(std::string input);
@@ -25,6 +27,7 @@ public:
     int parse();
 
     std::vector<LogicRule> &getFacts();
+    std::vector<BasicRule> &getBasicRules();
     std::set<char> &getQuerie();
     std::set<char> &getInitialFact();
 };
