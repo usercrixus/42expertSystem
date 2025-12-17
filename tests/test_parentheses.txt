@@ -1,9 +1,0 @@
-# Parentheses in LHS should not create empty blocks
-# Expect D true
-
-( B | C ) => D
-( B + A ) => D
-( ( B | C ) + A ) => D
-
-= A B C
-? D

@@ -1,0 +1,27 @@
+# Chaining Conclusion Tests
+
+# Test 1: Simple two-step chain
+A => B
+B => C
+# Expected: C = true
+
+# Test 2: Three-step chain
+D => E
+E => F
+F => G
+# Expected: G = true
+
+# Test 3: Branching chain
+H => I
+I => J
+I => K
+# Expected: J = true, K = true
+
+# Test 4: Diamond chain
+L => M
+L => N
+M + N => O
+# Expected: M = true, N = true, O = true
+
+= A D H L
+? C G J K O

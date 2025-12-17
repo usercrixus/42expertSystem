@@ -1,0 +1,20 @@
+# AND Conditions Tests
+
+# Test 1: Both conditions true
+A + B => C
+# Expected: C = true
+
+# Test 2: One condition false
+D + E => F
+# Expected: F = false
+
+# Test 3: Multiple AND conditions all true
+G + H + I => J
+# Expected: J = true
+
+# Test 4: Multiple AND conditions one false
+K + L + M => N
+# Expected: N = false
+
+= A B D G H I K L
+? C F J N

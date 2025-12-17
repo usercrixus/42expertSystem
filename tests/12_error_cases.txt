@@ -1,0 +1,20 @@
+# Error Cases Test - Contradictions and Negation Conflicts
+
+# Test 1: Simple contradiction without forcing (B => !B, B not set)
+# B => !B (rule says if B then not B - B should remain false)
+B => !B
+# Expected: B = false
+
+# Test 2: Contradiction through chain
+# E => F, F => !E (E triggers F, F contradicts E)
+E => F
+F => !E
+# Expected: E = true (input), F = true, contradiction
+
+# Test 3: Self-contradiction in conclusion
+# G => H + !H (G triggers both H and not H)
+G => H + !H
+# Expected: G = true (input), error/contradiction
+
+= E G
+? B E F G H

@@ -1,0 +1,20 @@
+# OR Conditions Tests
+
+# Test 1: First condition true
+A | B => C
+# Expected: C = true
+
+# Test 2: Second condition true
+D | E => F
+# Expected: F = true
+
+# Test 3: Both conditions true
+G | H => I
+# Expected: I = true
+
+# Test 4: Both conditions false
+J | K => L
+# Expected: L = false
+
+= A E G H
+? C F I L

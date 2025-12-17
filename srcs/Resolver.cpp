@@ -149,7 +149,7 @@ void Resolver::printTrace(char q, rhr_value_e result)
     
     if (current_trace.empty())
     {
-        std::cout << "No assertion proves " << q << ", false by default.";
+        std::cout << "No assertion proves " << q << ", false by default." << std::endl;
         return;
     }
     for (const auto &step : current_trace)
@@ -198,7 +198,7 @@ void Resolver::resolveQuerie(bool print_trace)
     {
         visiting.clear();
         current_trace.clear();
-        std::cout << "Resolving " << q << "...\n";
+        //std::cout << "Resolving " << q << "...\n";
         rhr_value_e res = prove(q);
         if (print_trace)
             printTrace(q, res);
