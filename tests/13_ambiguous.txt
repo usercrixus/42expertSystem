@@ -1,0 +1,7 @@
+# Ambiguous test B and C are ambiguous
+
+A + !C => B
+A + !B => C
+
+= A 
+? C B

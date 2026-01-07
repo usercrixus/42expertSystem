@@ -117,10 +117,10 @@ void Resolver::recordInitialFact(char q)
 void Resolver::recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired)
 {
     if (!lhs_fired)
-        return;  // Don't record rules that didn't fire
+        return;
     
     std::string desc = "Rule: " + rule->toString();
-    desc += rule->rhs_negated ? " shows " : " shows ";
+    desc += " shows ";
     desc += std::string(1, q);
     desc += rule->rhs_negated ? " false" : " true";
     
@@ -198,9 +198,13 @@ void Resolver::resolveQuerie(bool print_trace)
     {
         visiting.clear();
         current_trace.clear();
-        //std::cout << "Resolving " << q << "...\n";
         rhr_value_e res = prove(q);
         if (print_trace)
             printTrace(q, res);
+        else
+        {
+            std::string resultStr = (res == R_TRUE ? "true" : res == R_FALSE ? "false" : "ambiguous");
+            std::cout << q << " = " << resultStr << std::endl;
+        }
     }
 }

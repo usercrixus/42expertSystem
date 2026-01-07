@@ -13,18 +13,15 @@ C => !C
 # Expected: C = true (input fact), contradiction or error
 
 # Test 4: Self-loop with negation (variable not set)
-# D => !D (D stays false, !D is true, but rule doesn't trigger D)
 D => !D
 # Expected: D = false
 
 # Test 5: Multiple self-references
-# E => E, E => !E (contradiction)
 E => E
 E => !E
 # Expected: E = true (input fact), contradiction or error
 
 # Test 6: Self-loop in chain
-# F => G, G => G (G loops to itself after being set)
 F => G
 G => G
 # Expected: F = true, G = true
