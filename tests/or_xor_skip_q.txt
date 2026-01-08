@@ -1,9 +1,0 @@
-# OR/XOR on RHS involving Q is ignored for proving Q
-# Expect:
-# Q: false (A => (Q | X) does not assert Q deterministically)
-
-A => Q | X
-
-= A
-? Q
-

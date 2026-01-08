@@ -1,0 +1,20 @@
+# XOR Conditions Tests
+
+# Test 1: First true, second false
+A ^ B => C
+# Expected: C = true
+
+# Test 2: First false, second true
+D ^ E => F
+# Expected: F = true
+
+# Test 3: Both true (XOR is false)
+G ^ H => I
+# Expected: I = false
+
+# Test 4: Both false (XOR is false)
+J ^ K => L
+# Expected: L = false
+
+= A E G H
+? C F I L

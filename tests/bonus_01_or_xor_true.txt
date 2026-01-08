@@ -1,0 +1,26 @@
+# Bonus: OR and XOR in Conclusions Tests with result true
+
+# Test 1: OR in conclusion
+A => !B
+A => B | C
+# Expected: B = false, C = true
+
+# Test 2: XOR in conclusion
+D => E ^ F
+D => !F
+# Expected: E = true, F = false
+
+# Test 3: OR in conclusion used by another rule
+G => H | I
+H => J
+I => J
+# Expected: H = ambiguous, I = ambiguous, J = true
+
+# Test 4: XOR in conclusion used by another rule
+P => R
+P => Q ^ R
+!Q => S
+# Expected: Q = false, R = true, S = true
+
+= A D G P
+? B C E F H I J Q R S

@@ -1,0 +1,25 @@
+# Multiple Rules Same Conclusion Tests
+
+# Test 1: Two rules with same conclusion - first triggers
+A => C
+B => C
+# Expected: C = true
+
+# Test 2: Two rules with same conclusion - second triggers
+D => F
+E => F
+# Expected: F = true
+
+# Test 3: Three rules with same conclusion
+G => I
+H => I
+J => I
+# Expected: I = true
+
+# Test 4: Complex rules with same conclusion
+K + L => M
+N | O => M
+# Expected: M = true
+
+= A E G H J K L N O
+? C F I M

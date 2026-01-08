@@ -1,8 +1,8 @@
 #include "Resolver.hpp"
 #include <iostream>
 
-Resolver::Resolver(std::set<char> querie, std::vector<std::tuple<TokenEffect, std::vector<TokenBlock>, std::vector<TokenBlock>>> &facts, std::set<char> initial_facts)
-    : querie(querie), facts(facts), initial_facts(initial_facts)
+Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts)
+    : querie(querie), basic_rules(basic_rules), initial_facts(initial_facts)
 {
 }
 
@@ -29,79 +29,137 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
                 fact.erase(fact.begin() + i);
             }
             else
-                fact[i].setPriority(0);
+            {
+                // If this was the first block and there's a following block,
+                // prepend result to it so operators there have a left operand.
+                if (fact.size() > 1)
+                {
+                    fact[1].insert(fact[1].begin(), fact[i][0]);
+                    fact.erase(fact.begin());
+                    // Index i now points to what was fact[1]; no need to adjust
+                }
+                else
+                {
+                    fact[i].setPriority(0);
+                }
+            }
         }
     }
     if (fact.size() > 1)
         resolveLeft(fact);
-}
-
-bool Resolver::isInterBlockAmbiguity(const std::vector<TokenBlock> &fact, std::vector<bool> &block_has_q_pos, std::vector<bool> &block_has_q_neg, std::vector<bool> &block_has_or_xor)
-{
-    for (size_t i = 0; i < fact.size(); ++i)
+    else if (fact.size() == 1 && fact[0].size() > 1)
     {
-        if (block_has_or_xor[i])
-        {
-            if ((i > 0 && (block_has_q_pos[i - 1] || block_has_q_neg[i - 1])) ||
-                (i + 1 < fact.size() && (block_has_q_pos[i + 1] || block_has_q_neg[i + 1])))
-            {
-                return true;
-            }
-        }
+        // Final reduction at base priority
+        fact[0].setPriority(0);
+        fact[0].execute();
     }
-    return false;
 }
 
-rhr_status_e Resolver::innerBlockAmbiguity(char q, const std::vector<TokenBlock> &fact, std::vector<bool> &block_has_q_pos, std::vector<bool> &block_has_q_neg, std::vector<bool> &block_has_or_xor)
+rhr_value_e Resolver::prove(char q)
 {
-    bool found_q_pos = false;
-    bool found_q_neg = false;
-    for (size_t i = 0; i < fact.size(); ++i)
+    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
+    if (memoIt != memo.end())
     {
-        const TokenBlock &tokenBlock = fact[i];
-        for (size_t j = 0; j < tokenBlock.size(); ++j)
+        recordMemoHit(q, memoIt->second);
+        return memoIt->second;
+    }
+
+    auto initiaTrueIt = initial_facts.find(q);
+    if (initiaTrueIt != initial_facts.end())
+    {
+        recordInitialFact(q);
+        return memo[q] = R_TRUE;
+    }
+
+    if (visiting.count(q))
+        return R_FALSE;
+    visiting.insert(q);
+
+    bool isFactTrue = false;
+    bool isFactFalse = false;
+    
+    for (const BasicRule &rule : basic_rules)
+    {
+        if (rule.rhs_symbol == q)
         {
-            char token = tokenBlock[j].type;
-            if (token == '|' || token == '^')
-                block_has_or_xor[i] = true;
-            else if (token == q)
+            std::vector<TokenBlock> lhs = rule.lhs;
+            bool fired = evalLHS(lhs);
+            recordRuleConsidered(q, &rule, fired);
+            
+            if (fired)
             {
-                bool is_neg = (j > 0 && tokenBlock[j - 1].type == '!');
-                if (is_neg)
-                {
-                    found_q_neg = true;
-                    block_has_q_neg[i] = true;
-                }
+                if (!rule.rhs_negated)
+                    isFactTrue = true;
                 else
+                    isFactFalse = true;
+                    
+                if (isFactTrue && isFactFalse)
                 {
-                    found_q_pos = true;
-                    block_has_q_pos[i] = true;
+                    visiting.erase(q);
+                    return memo[q] = R_AMBIGOUS;
                 }
             }
         }
-        if (block_has_or_xor[i] && (block_has_q_pos[i] || block_has_q_neg[i]))
-            return AMBIGOUS;
     }
-    if (found_q_neg && found_q_pos)
-        return AMBIGOUS;
-    if (found_q_pos)
-        return TRUE;
-    if (found_q_neg)
-        return NOT;
-    return AMBIGOUS;
+    
+    visiting.erase(q);
+    return isFactTrue ? memo[q] = R_TRUE : memo[q] = R_FALSE;
 }
 
-rhr_status_e Resolver::getStatus(char q, const std::vector<TokenBlock> &fact)
+void Resolver::recordInitialFact(char q)
 {
-    std::vector<bool> block_has_q_pos(fact.size(), false);
-    std::vector<bool> block_has_q_neg(fact.size(), false);
-    std::vector<bool> block_has_or_xor(fact.size(), false);
-    rhr_status_e status = innerBlockAmbiguity(q, fact, block_has_q_pos, block_has_q_neg, block_has_or_xor);
-    if (status == AMBIGOUS)
-        return AMBIGOUS;
-    if (isInterBlockAmbiguity(fact, block_has_q_pos, block_has_q_neg, block_has_or_xor))
-        return AMBIGOUS;
-    return status;
+    current_trace.push_back({
+        std::string("Initial fact: ") + q + " is given as true",
+        q, nullptr, R_TRUE, false
+    });
+}
+
+void Resolver::recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired)
+{
+    if (!lhs_fired)
+        return;
+    
+    std::string desc = "Rule: " + rule->toString();
+    desc += " shows ";
+    desc += std::string(1, q);
+    desc += rule->rhs_negated ? " false" : " true";
+    
+    // Add origin information if the rule was deduced
+    if (rule->origin)
+    {
+        desc += " (deduced from rule: " + rule->origin->toString() + ")";
+    }
+    
+    rhr_value_e concl = rule->rhs_negated ? R_FALSE : R_TRUE;
+    current_trace.push_back({desc, q, rule, concl, true});
+}
+
+void Resolver::recordMemoHit(char q, rhr_value_e val)
+{
+    std::string valStr = (val == R_TRUE ? "true" : val == R_FALSE ? "false" : "ambiguous");
+    current_trace.push_back({
+        "Already resolved: " + std::string(1, q) + " = " + valStr,
+        q, nullptr, val, false
+    });
+}
+
+void Resolver::printTrace(char q, rhr_value_e result)
+{
+    std::cout << "=== Reasoning for " << q << " ===\n";
+    
+    if (current_trace.empty())
+    {
+        std::cout << "No assertion proves " << q << ", false by default." << std::endl;
+        return;
+    }
+    for (const auto &step : current_trace)
+    {
+        if (step.symbol == q || step.lhs_fired)
+            std::cout << "  " << step.description << "\n";
+    }
+    
+    std::string resultStr = (result == R_TRUE ? "true" : result == R_FALSE ? "false" : "ambiguous");
+    std::cout << "Conclusion: " << q << " is " << resultStr << "\n";
 }
 
 bool Resolver::evalLHS(std::vector<TokenBlock> lhs)
@@ -121,76 +179,53 @@ bool Resolver::evalLHS(std::vector<TokenBlock> lhs)
     return lhs.size() == 1 && lhs[0].size() == 1 && lhs[0][0].effect;
 }
 
-bool Resolver::isMentionQ(char q, const std::vector<TokenBlock> &rhr)
+void Resolver::resolveQuerie(bool print_trace)
 {
-    for (auto &blk : rhr)
+    // Display initial facts
+    if (!initial_facts.empty() && print_trace)
     {
-        for (size_t i = 0; i < blk.size(); ++i)
+        std::cout << "Initial facts: ";
+        bool first = true;
+        for (char fact : initial_facts)
         {
-            if (blk[i].type == q)
-                return true;
+            if (!first) std::cout << ", ";
+            std::cout << fact;
+            first = false;
         }
+        std::cout << "\n";
     }
-    return false;
-}
-
-rhr_value_e Resolver::prove(char q)
-{
-    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
-    if (memoIt != memo.end())
-        return memoIt->second;
-
-    auto initiaTrueIt = initial_facts.find(q);
-    if (initiaTrueIt != initial_facts.end())
-        return memo[q] = R_TRUE;
-
-    if (visiting.count(q))
-        return R_FALSE;
-    visiting.insert(q);
-
-    bool isFactTrue = false;
-    bool isFactFalse = false;
-    rhr_status_e status = FALSE;
-    for (auto &fact : facts)
-    {
-        if (isMentionQ(q, std::get<2>(fact)))
-        {
-            status = getStatus(q, std::get<2>(fact));
-            if (status != AMBIGOUS)
-            {
-                std::vector<TokenBlock> lhs = std::get<1>(fact);
-                if (evalLHS(lhs))
-                {
-                    if (status == TRUE)
-                        isFactTrue = true;
-                    else if (status == NOT)
-                        isFactFalse = true;
-                }
-                if (isFactTrue && isFactFalse)
-                {
-                    visiting.erase(q);
-                    return memo[q] = R_AMBIGOUS;
-                }
-            }
-        }
-    }
-    visiting.erase(q);
-    if (status == AMBIGOUS)
-        return R_AMBIGOUS;
-    return isFactTrue ? memo[q] = R_TRUE : memo[q] = R_FALSE;
-}
-
-void Resolver::resolveQuerie()
-{
     for (auto &q : querie)
     {
         visiting.clear();
+        current_trace.clear();
         rhr_value_e res = prove(q);
-        if (res == R_TRUE)
-            std::cout << q << " is true" << std::endl;
-        else if (res == R_AMBIGOUS)
-            std::cout << q << " is ambigous" << std::endl;
+        if (print_trace)
+            printTrace(q, res);
         else
-            std::cout << q << " is false" << std::endl;
+        {
+            std::string resultStr = (res == R_TRUE ? "true" : res == R_FALSE ? "false" : "ambiguous");
+            std::cout << q << " = " << resultStr << std::endl;
+        }
+    }
+}
+
+void Resolver::changeFacts(const std::set<char> &new_facts)
+{
+    initial_facts = new_facts;
+    memo.clear();
+    visiting.clear();
+    current_trace.clear();
+
+    // Reset token effects in all rules
+    for (BasicRule &rule : basic_rules)
+    {
+        for (TokenBlock &block : rule.lhs)
+        {
+            for (TokenEffect &tk : block)
+            {
+                if (tk.type >= 'A' && tk.type <= 'Z')
+                    tk.effect = (initial_facts.find(tk.type) != initial_facts.end());
+            }
+        }
     }
 }

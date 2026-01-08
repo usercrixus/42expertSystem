@@ -1,0 +1,17 @@
+# Error Cases Test - Contradictions and Negation Conflicts
+
+# Test 1: Simple contradiction without forcing
+B => !B
+# Expected: B = false
+
+# Test 2: Contradiction through chain with initial set
+E => F
+F => !E
+# Expected: E = true (input), F = true, contradiction
+
+# Test 3: Self-contradiction in conclusion
+G => H + !H
+# Expected: G = true (input), error/contradiction
+
+= E G
+? B E F G H
