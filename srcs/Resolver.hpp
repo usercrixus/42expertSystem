@@ -52,4 +52,5 @@ public:
 	~Resolver();
 	void resolveLeft(std::vector<TokenBlock> &fact);
 	void resolveQuerie(bool print_trace = true);
+	void changeFacts(const std::set<char> &new_facts);
 };

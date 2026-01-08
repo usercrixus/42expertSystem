@@ -208,3 +208,24 @@ void Resolver::resolveQuerie(bool print_trace)
         }
     }
 }
+
+void Resolver::changeFacts(const std::set<char> &new_facts)
+{
+    initial_facts = new_facts;
+    memo.clear();
+    visiting.clear();
+    current_trace.clear();
+
+    // Reset token effects in all rules
+    for (BasicRule &rule : basic_rules)
+    {
+        for (TokenBlock &block : rule.lhs)
+        {
+            for (TokenEffect &tk : block)
+            {
+                if (tk.type >= 'A' && tk.type <= 'Z')
+                    tk.effect = (initial_facts.find(tk.type) != initial_facts.end());
+            }
+        }
+    }
+}
