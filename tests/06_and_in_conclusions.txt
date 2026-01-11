@@ -17,4 +17,4 @@ L => M + !N
 # Expected: M = true, N = false
 
 = A G K L
-? B C E F I J H L M N
+? B C E F I J H M N

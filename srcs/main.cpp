@@ -51,8 +51,21 @@ int main(int argc, char **argv)
     Parser parser(argv[1]);
     if (parser.parse() != 0)
         return 1;
+    if (!parser.getCombinedTruthTable().hasValidState())
+    {
+        std::cerr << "No valid states for the given rules." << std::endl;
+        return 1;
+    }
     Resolver resolver(parser.getQuerie(), parser.getBasicRules(), parser.getInitialFact());
-    resolver.resolveQuerie(print_trace);
+    if (parser.hasValidStateWithInitialFacts())
+    {
+        resolver.resolveQuerie(print_trace);
+    } else {
+        std::cerr << "No valid states with the given initial facts.";
+        if (interactive_mode)
+            std::cerr << " Please try again.";
+        std::cerr << std::endl;
+    }
 
     if (interactive_mode)
     {
@@ -67,8 +80,12 @@ int main(int argc, char **argv)
             if (!parseInteractiveFacts(line, new_facts))
                 continue; // Error parsing facts, prompt again
 
-            // Keeping parsing state consistent could be optional here
             parser.getInitialFact() = new_facts;
+            if (!parser.hasValidStateWithInitialFacts())
+            {
+                std::cerr << "No valid states with the given initial facts. Please try again." << std::endl;
+                continue;
+            }
             resolver.changeFacts(parser.getInitialFact());
             resolver.resolveQuerie(print_trace);
         }
