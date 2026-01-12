@@ -58,7 +58,6 @@ static bool evaluateSide(const std::vector<TokenBlock> &side, const std::map<cha
         {
             if (tk.type >= 'A' && tk.type <= 'Z')
             {
-                // Push variable value (default false if not in map)
                 auto it = values.find(tk.type);
                 stack.push_back(it != values.end() ? it->second : false);
             }
@@ -121,36 +120,24 @@ TruthTable TruthTable::fromBasicRule(const BasicRule &rule)
 {
     TruthTable table;
     
-    // Collect all variables from LHS
     table.variables = collectVariables(rule.lhs);
-    
-    // Add RHS symbol
     table.variables.insert(rule.rhs_symbol);
     
-    // Generate all possible combinations (2^n states)
     size_t num_vars = table.variables.size();
-    size_t num_combinations = 1 << num_vars;  // 2^n
-    
+    size_t num_combinations = 1 << num_vars;
     std::vector<char> var_list(table.variables.begin(), table.variables.end());
-    
     for (size_t i = 0; i < num_combinations; ++i)
     {
         std::map<char, bool> state;
-        
-        // Generate bit pattern for this combination
         for (size_t j = 0; j < num_vars; ++j)
         {
             state[var_list[j]] = (i >> j) & 1;
         }
-        
-        // Evaluate: LHS => RHS (implication: !LHS || RHS)
         bool lhs_val = evaluateSide(rule.lhs, state);
         bool rhs_val = rule.rhs_negated ? !state[rule.rhs_symbol] : state[rule.rhs_symbol];
         
-        // Implication is satisfied when: !LHS || RHS
         bool rule_satisfied = !lhs_val || rhs_val;
         
-        // Only store valid states
         if (rule_satisfied)
         {
             table.valid_states.insert(VariableState(state));
@@ -169,7 +156,6 @@ TruthTable TruthTable::filterByFacts(const std::map<char, bool> &known_facts) co
     {
         bool compatible = true;
         
-        // Check if state matches all known facts
         for (const auto &fact : known_facts)
         {
             auto it = state.values.find(fact.first);
@@ -193,18 +179,15 @@ TruthTable TruthTable::conjunction(const TruthTable &t1, const TruthTable &t2)
 {
     TruthTable result;
     
-    // Union of all variables
     result.variables = t1.variables;
     result.variables.insert(t2.variables.begin(), t2.variables.end());
     
-    // Find states that are compatible in both tables
     for (const VariableState &state1 : t1.valid_states)
     {
         for (const VariableState &state2 : t2.valid_states)
         {
             if (state1.isCompatibleWith(state2))
             {
-                // Merge the two states
                 VariableState merged = state1.merge(state2);
                 result.valid_states.insert(merged);
             }
@@ -271,7 +254,6 @@ std::string TruthTable::toString() const
         return oss.str();
     }
     
-    // Header
     std::vector<char> var_list(variables.begin(), variables.end());
     for (char var : var_list)
     {
@@ -286,7 +268,6 @@ std::string TruthTable::toString() const
         return oss.str();
     }
     
-    // Show all valid states
     for (const VariableState &state : valid_states)
     {
         for (char var : var_list)

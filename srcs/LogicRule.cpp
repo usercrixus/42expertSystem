@@ -125,7 +125,7 @@ static bool hasNegatedParentheses(const std::vector<TokenBlock> &rhs)
 // apply De Morgan's law: !(A+B) = !A|!B and !(A|B) = !A+!B
 static std::vector<LogicRule> applyDeMorgan(const LogicRule &rule)
 {
-    std::vector<LogicRule> result;
+    std::vector<LogicRule> res;
     
     // Find negation operator followed by higher-priority blocks (parentheses)
     int neg_block_index = -1;
@@ -149,8 +149,8 @@ static std::vector<LogicRule> applyDeMorgan(const LogicRule &rule)
     
     if (neg_block_index < 0)
     {
-        result.push_back(rule);
-        return result;
+        res.push_back(rule);
+        return res;
     }
     
     // Extract the negated expression (higher-priority blocks after negation)
@@ -247,32 +247,32 @@ static std::vector<LogicRule> applyDeMorgan(const LogicRule &rule)
     for (size_t i = end_index; i < rule.rhs.size(); ++i)
         transformed_rhs.push_back(rule.rhs[i]);
     
-    result.emplace_back(rule.arrow, rule.lhs, transformed_rhs);
-    return result;
+    res.emplace_back(rule.arrow, rule.lhs, transformed_rhs);
+    return res;
 }
 
 static std::vector<LogicRule> expandEquivalence(const LogicRule &rule)
 {
-    std::vector<LogicRule> result;
+    std::vector<LogicRule> expanded;
     
     if (rule.arrow.type == '=')
     {
         // A <=> B becomes: A => B and B => A
-        result.emplace_back(TokenEffect('>'), rule.lhs, rule.rhs);
-        result.emplace_back(TokenEffect('>'), rule.rhs, rule.lhs);
+        expanded.emplace_back(TokenEffect('>'), rule.lhs, rule.rhs);
+        expanded.emplace_back(TokenEffect('>'), rule.rhs, rule.lhs);
     }
     else
     {
-        result.push_back(rule);
+        expanded.push_back(rule);
     }
     
-    return result;
+    return expanded;
 }
 
 // A => B + C becomes A => B and A => C
 static std::vector<LogicRule> splitByAndAtLowestPriority(const LogicRule &rule, unsigned int min_priority)
 {
-    std::vector<LogicRule> result;
+    std::vector<LogicRule> splits;
     std::vector<std::vector<TokenBlock>> sub_expressions;
     std::vector<TokenBlock> current_sub;
     
@@ -346,15 +346,15 @@ static std::vector<LogicRule> splitByAndAtLowestPriority(const LogicRule &rule, 
     // Create a rule for each sub-expression
     for (const auto &sub_rhs : sub_expressions)
         if (!sub_rhs.empty())
-            result.emplace_back(TokenEffect('>'), rule.lhs, sub_rhs);
+            splits.emplace_back(TokenEffect('>'), rule.lhs, sub_rhs);
     
-    return result;
+    return splits;
 }
 
 // A => B | C becomes: A + !B => C and A + !C => B
 static std::vector<LogicRule> expandOrOperator(const LogicRule &rule, size_t block_index, size_t token_index)
 {
-    std::vector<LogicRule> result;
+    std::vector<LogicRule> or_rules;
     const TokenBlock &block = rule.rhs[block_index];
     
     // Extract left operand (all tokens before OR)
@@ -398,7 +398,7 @@ static std::vector<LogicRule> expandOrOperator(const LogicRule &rule, size_t blo
             new_lhs_1.push_back(neg_block);
         }
     }
-    result.emplace_back(TokenEffect('>'), new_lhs_1, right_rhs);
+    or_rules.emplace_back(TokenEffect('>'), new_lhs_1, right_rhs);
     
     // Create rule 2: A + !right => left
     std::vector<TokenBlock> new_lhs_2 = rule.lhs;
@@ -421,9 +421,9 @@ static std::vector<LogicRule> expandOrOperator(const LogicRule &rule, size_t blo
             new_lhs_2.push_back(neg_block);
         }
     }
-    result.emplace_back(TokenEffect('>'), new_lhs_2, left_rhs);
+    or_rules.emplace_back(TokenEffect('>'), new_lhs_2, left_rhs);
     
-    return result;
+    return or_rules;
 }
 
 // A => B ^ C becomes:
@@ -432,7 +432,7 @@ static std::vector<LogicRule> expandOrOperator(const LogicRule &rule, size_t blo
 //   A => !(B + C)  (constraint: negation will be further expanded by De Morgan)
 static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t block_index, size_t token_index)
 {
-    std::vector<LogicRule> result;
+    std::vector<LogicRule> xor_rules;
     const TokenBlock &block = rule.rhs[block_index];
     
     // Extract left operand
@@ -468,7 +468,7 @@ static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t bl
             neg_block.push_back(tk);
         new_lhs_1.push_back(neg_block);
     }
-    result.emplace_back(TokenEffect('>'), new_lhs_1, right_rhs);
+    xor_rules.emplace_back(TokenEffect('>'), new_lhs_1, right_rhs);
     
     // Rule 2: A + !right => left
     std::vector<TokenBlock> new_lhs_2 = rule.lhs;
@@ -483,7 +483,7 @@ static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t bl
             neg_block.push_back(tk);
         new_lhs_2.push_back(neg_block);
     }
-    result.emplace_back(TokenEffect('>'), new_lhs_2, left_rhs);
+    xor_rules.emplace_back(TokenEffect('>'), new_lhs_2, left_rhs);
     
     // Rule 3: A => !(left + right)
     std::vector<TokenBlock> constraint_rhs;
@@ -507,9 +507,9 @@ static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t bl
     paren_right.setPriority(1);
     constraint_rhs.push_back(paren_right);
     
-    result.emplace_back(TokenEffect('>'), rule.lhs, constraint_rhs);
+    xor_rules.emplace_back(TokenEffect('>'), rule.lhs, constraint_rhs);
     
-    return result;
+    return xor_rules;
 }
 
 static std::vector<LogicRule> expandOrInRhs(const LogicRule &rule)
@@ -561,7 +561,7 @@ static std::vector<LogicRule> expandOrInRhs(const LogicRule &rule)
     return result;
 }
 
-static void extractBasicRules(const LogicRule &rule, const LogicRule *origin, std::vector<BasicRule> &result)
+static void extractBasicRules(const LogicRule &rule, const LogicRule *origin, std::vector<BasicRule> &basics)
 {
     std::set<std::pair<char, bool>> processed;
     
@@ -580,7 +580,7 @@ static void extractBasicRules(const LogicRule &rule, const LogicRule *origin, st
                 if (processed.find(symbol_pair) == processed.end())
                 {
                     processed.insert(symbol_pair);
-                    result.emplace_back(rule.lhs, symbol, is_negated, origin);
+                    basics.emplace_back(rule.lhs, symbol, is_negated, origin);
                 }
             }
         }
@@ -589,7 +589,7 @@ static void extractBasicRules(const LogicRule &rule, const LogicRule *origin, st
 
 std::vector<BasicRule> LogicRule::deduceBasics() const
 {
-    std::vector<BasicRule> result;
+    std::vector<BasicRule> basics;
     std::queue<std::pair<LogicRule, const LogicRule*>> to_process;
 
     std::vector<LogicRule> after_equiv = expandEquivalence(*this);
@@ -611,7 +611,7 @@ std::vector<BasicRule> LogicRule::deduceBasics() const
         
         // check if RHS is only atomic symbols connected by AND
         if (!hasOrXor(current.rhs))
-            extractBasicRules(current, origin, result);
+            extractBasicRules(current, origin, basics);
         else
         {
             std::vector<LogicRule> expanded = expandOrInRhs(current);
@@ -622,10 +622,10 @@ std::vector<BasicRule> LogicRule::deduceBasics() const
         }
     }
 
-    if (result.size() == 1) {
+    if (basics.size() == 1) {
         // We don't want "deduced from itself" for single basic rules
-        result[0].origin = nullptr;
+        basics[0].origin = nullptr;
     }
     
-    return result;
+    return basics;
 }
