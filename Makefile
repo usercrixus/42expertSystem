@@ -12,6 +12,7 @@ SRCS := srcs/main.cpp \
         srcs/TokenEffect.cpp \
         srcs/Resolver.cpp \
 		srcs/LogicRule.cpp \
+		srcs/TruthTable.cpp \
 
 # Object files (replace .cpp with .o)
 OBJS := $(SRCS:.cpp=.o)

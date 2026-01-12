@@ -13,5 +13,5 @@ F => !E
 G => H + !H
 # Expected: G = true (input), error/contradiction
 
-= E G
-? B E F G H
+= B E G
+? F H

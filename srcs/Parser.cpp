@@ -1,4 +1,5 @@
 #include "Parser.hpp"
+#include "TruthTable.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -51,7 +52,6 @@ void Parser::parseClassic(std::string line, LogicRule &fact_line)
 {
 	std::string buff;
 	int side = 1;
-	// Don't pre-create initial block; let first token create it at correct priority
 	for (size_t i = 0; i < line.size(); i++)
 	{
 		if (line[i] == '#')
@@ -162,6 +162,16 @@ void Parser::expandRules()
 		std::vector<BasicRule> basics = rule.deduceBasics();
 		basic_rules.insert(basic_rules.end(), basics.begin(), basics.end());
 	}
+	
+	std::vector<TruthTable> tables;
+	for (const BasicRule &rule : basic_rules)
+	{
+		TruthTable table = TruthTable::fromBasicRule(rule);
+		//std::cout << "Truth Table for Basic Rule: " << rule.toString() << "\n";
+		//std::cout << table.toString() << "\n";
+		tables.push_back(table);
+	}
+	combined_truth_table = TruthTable::conjunctionAll(tables);
 }
 
 std::vector<LogicRule> &Parser::getFacts()
@@ -183,4 +193,23 @@ std::set<char> &Parser::getQuerie()
 std::set<char> &Parser::getInitialFact()
 {
     return initial_facts;
+}
+
+TruthTable &Parser::getCombinedTruthTable()
+{
+	//std::cout << "Combined Truth Table:\n" << combined_truth_table.toString() << "\n";
+	return combined_truth_table;
+}
+
+bool Parser::hasValidStateWithInitialFacts() const
+{
+	std::map<char, bool> known_facts;
+	for (char c : initial_facts)
+	{
+		known_facts[c] = true;
+	}
+	TruthTable filtered = combined_truth_table.filterByFacts(known_facts);
+	
+	//std::cout << "Filtered Truth Table with Initial Facts:\n" << filtered.toString() << "\n";
+	return filtered.hasValidState();
 }

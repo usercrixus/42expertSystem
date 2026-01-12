@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include "LogicRule.hpp"
+#include "TruthTable.hpp"
 
 class Parser
 {
@@ -14,6 +15,7 @@ private:
     std::set<char> initial_facts;
     std::set<char> querie;
     unsigned int priority;
+    TruthTable combined_truth_table;
     void expandRules();
 
 public:
@@ -30,4 +32,6 @@ public:
     std::vector<BasicRule> &getBasicRules();
     std::set<char> &getQuerie();
     std::set<char> &getInitialFact();
+    TruthTable &getCombinedTruthTable();
+    bool hasValidStateWithInitialFacts() const;
 };

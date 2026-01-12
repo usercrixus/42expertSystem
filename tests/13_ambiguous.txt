@@ -1,7 +1,31 @@
 # Ambiguous test B and C are ambiguous
 
+# A => B | C
+# equivalent
 A + !C => B
 A + !B => C
 
-= A 
-? C B
+# = A
+# ? B C
+
+# Selon l'ordre deux etats possible donc ambigu :
+# Etat possible 1 :
+# C faux
+# B vrai
+
+# Etat possible 2 :
+# B faux
+# C vrai
+
+############################
+
+# 1ere regle optionnelle juste la pour verifier que les interdependance soient pas marque ambigus tt le temps
+
+!E => D
+
+= A
+? B C D E
+
+# 1 etat possible avec E par defaut faux :
+# E faux
+# D vrai
