@@ -167,8 +167,8 @@ void Parser::expandRules()
 	for (const BasicRule &rule : basic_rules)
 	{
 		TruthTable table = TruthTable::fromBasicRule(rule);
-		std::cout << "Truth Table for Basic Rule: " << rule.toString() << "\n";
-		std::cout << table.toString() << "\n";
+		//std::cout << "Truth Table for Basic Rule: " << rule.toString() << "\n";
+		//std::cout << table.toString() << "\n";
 		tables.push_back(table);
 	}
 	combined_truth_table = TruthTable::conjunctionAll(tables);
