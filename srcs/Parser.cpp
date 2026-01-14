@@ -167,8 +167,6 @@ void Parser::expandRules()
 	for (const BasicRule &rule : basic_rules)
 	{
 		TruthTable table = TruthTable::fromBasicRule(rule);
-		//std::cout << "Truth Table for Basic Rule: " << rule.toString() << "\n";
-		//std::cout << table.toString() << "\n";
 		tables.push_back(table);
 	}
 	combined_truth_table = TruthTable::conjunctionAll(tables);
@@ -197,7 +195,6 @@ std::set<char> &Parser::getInitialFact()
 
 TruthTable &Parser::getCombinedTruthTable()
 {
-	//std::cout << "Combined Truth Table:\n" << combined_truth_table.toString() << "\n";
 	return combined_truth_table;
 }
 
@@ -209,7 +206,5 @@ bool Parser::hasValidStateWithInitialFacts() const
 		known_facts[c] = true;
 	}
 	TruthTable filtered = combined_truth_table.filterByFacts(known_facts);
-	
-	//std::cout << "Filtered Truth Table with Initial Facts:\n" << filtered.toString() << "\n";
 	return filtered.hasValidState();
 }
