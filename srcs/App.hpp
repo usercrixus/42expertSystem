@@ -8,6 +8,9 @@ class Resolver;
 class App
 {
 public:
+    /**
+     * Launch an expert system instance
+     */
     int run(int argc, char **argv);
 
 private:
