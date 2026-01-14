@@ -5,12 +5,11 @@
 #include <string>
 #include "TokenEffect.hpp"
 #include "TokenBlock.hpp"
+#include "BasicRule.hpp"
 
-// Forward declaration for LogicRule::deduceBasics()
-struct BasicRule;
-
-struct LogicRule
+class LogicRule
 {
+public:
     TokenEffect arrow;
     std::vector<TokenBlock> lhs;
     std::vector<TokenBlock> rhs;
@@ -22,17 +21,4 @@ struct LogicRule
 };
 
 std::ostream &operator<<(std::ostream &os, const LogicRule &rule);
-
-struct BasicRule
-{
-    std::vector<TokenBlock> lhs;
-    char rhs_symbol;
-    bool rhs_negated;
-    const LogicRule* origin;
-
-    BasicRule();
-    BasicRule(std::vector<TokenBlock> lhs_blocks, char symbol, bool negated, const LogicRule* orig);
-    std::string toString() const;
-};
-
-std::ostream &operator<<(std::ostream &os, const BasicRule &rule);
+std::string renderSide(const std::vector<TokenBlock> &side);

@@ -8,6 +8,7 @@ TARGET   := expert
 # Source files (inside srcs/)
 SRCS := srcs/main.cpp \
         srcs/App.cpp \
+        srcs/BasicRule.cpp \
         srcs/Parser.cpp \
         srcs/TokenBlock.cpp \
         srcs/TokenEffect.cpp \
