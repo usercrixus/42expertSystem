@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * Represent a taken.
+ * Represent a token.
  * Can be a fact [A-Z] or an effect (|+^=)
  */
 class TokenEffect
