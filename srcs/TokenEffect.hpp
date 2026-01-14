@@ -1,5 +1,9 @@
 #pragma once
 
+/**
+ * Represent a taken.
+ * Can be a fact [A-Z] or an effect (|+^=)
+ */
 class TokenEffect
 {
 private:
