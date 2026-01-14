@@ -2,40 +2,6 @@
 #include <iostream>
 #include <stdexcept>
 
-static rhr_value_e triNot(rhr_value_e v)
-{
-    if (v == R_TRUE)
-        return R_FALSE;
-    if (v == R_FALSE)
-        return R_TRUE;
-    return R_AMBIGOUS;
-}
-
-static rhr_value_e triAnd(rhr_value_e a, rhr_value_e b)
-{
-    if (a == R_FALSE || b == R_FALSE)
-        return R_FALSE;
-    if (a == R_TRUE && b == R_TRUE)
-        return R_TRUE;
-    return R_AMBIGOUS;
-}
-
-static rhr_value_e triOr(rhr_value_e a, rhr_value_e b)
-{
-    if (a == R_TRUE || b == R_TRUE)
-        return R_TRUE;
-    if (a == R_FALSE && b == R_FALSE)
-        return R_FALSE;
-    return R_AMBIGOUS;
-}
-
-static rhr_value_e triXor(rhr_value_e a, rhr_value_e b)
-{
-    if (a == R_AMBIGOUS || b == R_AMBIGOUS)
-        return R_AMBIGOUS;
-    return (a != b) ? R_TRUE : R_FALSE;
-}
-
 Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts)
     : querie(querie),
       basic_rules(basic_rules),
@@ -45,6 +11,40 @@ Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, s
 
 Resolver::~Resolver()
 {
+}
+
+static rhr_value_e resolveNot(rhr_value_e v)
+{
+    if (v == R_TRUE)
+        return R_FALSE;
+    if (v == R_FALSE)
+        return R_TRUE;
+    return R_AMBIGOUS;
+}
+
+static rhr_value_e resolveAnd(rhr_value_e a, rhr_value_e b)
+{
+    if (a == R_FALSE || b == R_FALSE)
+        return R_FALSE;
+    if (a == R_TRUE && b == R_TRUE)
+        return R_TRUE;
+    return R_AMBIGOUS;
+}
+
+static rhr_value_e resolveOr(rhr_value_e a, rhr_value_e b)
+{
+    if (a == R_TRUE || b == R_TRUE)
+        return R_TRUE;
+    if (a == R_FALSE && b == R_FALSE)
+        return R_FALSE;
+    return R_AMBIGOUS;
+}
+
+static rhr_value_e resolveXor(rhr_value_e a, rhr_value_e b)
+{
+    if (a == R_AMBIGOUS || b == R_AMBIGOUS)
+        return R_AMBIGOUS;
+    return (a != b) ? R_TRUE : R_FALSE;
 }
 
 void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
@@ -243,7 +243,7 @@ void Resolver::executeNotTri(std::vector<TriToken> &tokens)
                 throw std::logic_error("operator ! has no var attached\n");
             TriToken &next = tokens[i + 1];
             rhr_value_e val = getTokenValue(next, true);
-            next.value = triNot(val);
+            next.value = resolveNot(val);
             next.has_value = true;
             next.type = 0;
             tokens.erase(tokens.begin() + i);
@@ -270,11 +270,11 @@ void Resolver::executeOthersTri(std::vector<TriToken> &tokens, char op_target)
             rhr_value_e rval = getTokenValue(right, false);
             rhr_value_e res = R_FALSE;
             if (op_target == '+')
-                res = triAnd(lval, rval);
+                res = resolveAnd(lval, rval);
             else if (op_target == '|')
-                res = triOr(lval, rval);
+                res = resolveOr(lval, rval);
             else if (op_target == '^')
-                res = triXor(lval, rval);
+                res = resolveXor(lval, rval);
             tokens[i].type = 0;
             tokens[i].value = res;
             tokens[i].has_value = true;
