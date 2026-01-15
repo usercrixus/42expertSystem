@@ -63,6 +63,7 @@ private:
 	void recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired);
 	void recordMemoHit(char q, rhr_value_e val);
 	void printTrace(char q, rhr_value_e result);
+	unsigned int getMaxPriority(std::vector<TokenBlock> &fact);
 	void resolveLeft(std::vector<TokenBlock> &fact);
 	/**
 	 * Display initial facts

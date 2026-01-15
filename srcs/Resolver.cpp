@@ -47,14 +47,20 @@ static rhr_value_e resolveXor(rhr_value_e a, rhr_value_e b)
     return (a != b) ? R_TRUE : R_FALSE;
 }
 
-void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
+unsigned int Resolver::getMaxPriority(std::vector<TokenBlock> &fact)
 {
-    unsigned int priority = 0;
+    unsigned int maxPriority = 0;
     for (TokenBlock &token_block : fact)
     {
-        if (token_block.getPriority() > priority)
-            priority = token_block.getPriority();
+        if (token_block.getPriority() > maxPriority)
+            maxPriority = token_block.getPriority();
     }
+    return maxPriority;
+}
+
+void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
+{
+    unsigned int priority = getMaxPriority(fact);
     for (size_t i = 0; i < fact.size(); i++)
     {
         if (fact[i].getPriority() == priority)
@@ -67,13 +73,10 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
             }
             else
             {
-                // If this was the first block and there's a following block,
-                // prepend result to it so operators there have a left operand.
                 if (fact.size() > 1)
                 {
                     fact[1].insert(fact[1].begin(), fact[i][0]);
                     fact.erase(fact.begin());
-                    // Index i now points to what was fact[1]; no need to adjust
                 }
                 else
                 {
@@ -86,7 +89,6 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
         resolveLeft(fact);
     else if (fact.size() == 1 && fact[0].size() > 1)
     {
-        // Final reduction at base priority
         fact[0].setPriority(0);
         fact[0].execute();
     }
