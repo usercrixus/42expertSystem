@@ -75,23 +75,16 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
             {
                 if (fact.size() > 1)
                 {
-                    fact[1].insert(fact[1].begin(), fact[i][0]);
+                    fact[1].insert(fact[1].begin(), fact[0][0]);
                     fact.erase(fact.begin());
                 }
                 else
-                {
-                    fact[i].setPriority(0);
-                }
+                    fact[0].setPriority(0);
             }
         }
     }
-    if (fact.size() > 1)
+    if (fact.size() > 0)
         resolveLeft(fact);
-    else if (fact.size() == 1 && fact[0].size() > 1)
-    {
-        fact[0].setPriority(0);
-        fact[0].execute();
-    }
 }
 
 rhr_value_e Resolver::prove(char q, bool negated_context)
