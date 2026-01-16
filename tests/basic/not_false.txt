@@ -1,0 +1,6 @@
+# NOT - condition fails
+A + !B => C
+# Expected: C = false
+
+= A B
+? C

@@ -1,0 +1,6 @@
+# AND in conclusion
+A => B + C
+# Expected: B = true, C = true
+
+= A
+? B C

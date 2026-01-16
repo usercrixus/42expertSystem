@@ -1,0 +1,6 @@
+# OR with grouped AND
+A => (B + C) | D
+# Expected: B = false, C = false, D = ambiguous
+
+= A
+? B C D

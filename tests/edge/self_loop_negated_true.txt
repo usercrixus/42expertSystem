@@ -1,0 +1,6 @@
+# Negated self-loop without initial fact
+A => !A
+# Expected: A = false
+
+=
+? A

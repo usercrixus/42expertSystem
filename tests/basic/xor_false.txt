@@ -1,0 +1,6 @@
+# XOR - both true
+A ^ B => C
+# Expected: C = false
+
+= A B
+? C

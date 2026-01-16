@@ -1,0 +1,8 @@
+# Negated branch
+A => B
+!B => C
+B => D
+# Expected: C = false, D = true
+
+= A
+? C D

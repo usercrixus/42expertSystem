@@ -384,6 +384,7 @@ void Resolver::resolveQuerie(bool print_trace)
         printInitialFact();
     for (auto &q : querie)
     {
+        memo.clear();
         visiting.clear();
         current_trace.clear();
         rhr_value_e res = prove(q, false);

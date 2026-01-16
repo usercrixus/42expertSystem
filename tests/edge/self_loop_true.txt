@@ -1,0 +1,6 @@
+# Self-loop with initial fact
+A => A
+# Expected: A = true
+
+= A
+? A

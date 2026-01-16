@@ -1,0 +1,8 @@
+# Loop forced false by negation chain
+A => !B
+!B => !C
+!C => !B
+# Expected: B = false, C = false
+
+= A
+? B C

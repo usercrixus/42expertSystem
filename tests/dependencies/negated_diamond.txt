@@ -1,0 +1,8 @@
+# Negated diamond
+A => B
+A => !C
+B + C => D
+# Expected: B = true, C = false, D = false
+
+= A
+? B C D

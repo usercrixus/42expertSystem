@@ -1,0 +1,11 @@
+# Comprehensive basic rule
+( ( A + B ) | ( C ^ D ) ) + !E => F + G
+# Expected: F = true, G = true
+
+F => H
+G => I
+H + I => J + F
+# Expected: H = true, I = true, J = true
+
+= A B C D
+? F G H I J

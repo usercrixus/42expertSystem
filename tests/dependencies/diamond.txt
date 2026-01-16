@@ -1,0 +1,8 @@
+# Diamond dependency
+A => B
+A => C
+B + C => D
+# Expected: D = true
+
+= A
+? D

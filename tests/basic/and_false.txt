@@ -1,0 +1,6 @@
+# AND - one false
+A + B => C
+# Expected: C = false
+
+= A
+? C

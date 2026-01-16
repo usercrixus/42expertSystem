@@ -1,0 +1,6 @@
+# Parentheses - grouped AND
+( A + B ) | C => D
+# Expected: D = true
+
+= A B
+? D

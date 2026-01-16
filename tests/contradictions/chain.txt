@@ -1,0 +1,7 @@
+# Contradiction through chain without initial fact
+A => B
+B => !A
+# Expected: B = false
+
+=
+? B

@@ -1,0 +1,7 @@
+# Loop forced by initial fact
+A => B
+B => A
+# Expected: A = true, B = true
+
+= A
+? A B

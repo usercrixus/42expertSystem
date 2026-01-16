@@ -1,0 +1,8 @@
+# OR in conclusion used by another rule
+A => B | C
+B => D
+C => D
+# Expected: B = ambiguous, C = ambiguous, D = ambiguous
+
+= A
+? B C D

@@ -1,0 +1,8 @@
+# XOR in conclusion used by another rule
+A => C
+A => B ^ C
+!B => D
+# Expected: B = false, C = ambiguous, D = ambiguous
+
+= A
+? B C D

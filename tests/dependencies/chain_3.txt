@@ -1,0 +1,8 @@
+# Chain length 3
+A => B
+B => C
+C => D
+# Expected: D = true
+
+= A
+? D

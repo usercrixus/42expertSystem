@@ -1,0 +1,7 @@
+# OR in conclusion forced by negation
+A => !B
+A => B | C
+# Expected: B = ambiguous, C = ambiguous
+
+= A
+? B C

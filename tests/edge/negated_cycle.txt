@@ -1,0 +1,8 @@
+# Negated cycle
+A => B
+B => !C
+!C => A
+# Expected: A = true, B = true, C = false
+
+= A
+? A B C

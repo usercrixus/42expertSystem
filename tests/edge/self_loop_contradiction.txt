@@ -1,0 +1,7 @@
+# Self-loop with contradiction without initial fact
+A => A
+A => !A
+# Expected: A = false
+
+=
+? A

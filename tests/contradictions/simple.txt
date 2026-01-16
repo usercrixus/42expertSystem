@@ -1,0 +1,6 @@
+# Simple contradiction without initial fact
+A => !A
+# Expected: A = false
+
+=
+? A

@@ -1,0 +1,6 @@
+# XOR in conclusion (ambiguous)
+A => B ^ C
+# Expected: B = ambiguous, C = ambiguous
+
+= A
+? B C

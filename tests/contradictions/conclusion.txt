@@ -1,0 +1,6 @@
+# Self-contradiction in conclusion without initial fact
+A => B + !B
+# Expected: B = false
+
+=
+? B

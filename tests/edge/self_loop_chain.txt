@@ -1,0 +1,7 @@
+# Self-loop in chain
+A => B
+B => B
+# Expected: A = true, B = true
+
+= A
+? A B

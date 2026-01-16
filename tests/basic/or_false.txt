@@ -1,0 +1,6 @@
+# OR - both false
+A | B => C
+# Expected: C = false
+
+=
+? C

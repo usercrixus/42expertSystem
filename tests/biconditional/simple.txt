@@ -1,0 +1,6 @@
+# Biconditional - forward direction
+A <=> B
+# Expected: B = true
+
+= A
+? B

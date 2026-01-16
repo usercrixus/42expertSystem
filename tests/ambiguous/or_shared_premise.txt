@@ -1,0 +1,6 @@
+# OR with shared premise
+A => B | C
+# Expected: B = ambiguous, C = ambiguous
+
+= A
+? B C

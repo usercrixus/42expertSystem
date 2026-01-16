@@ -1,0 +1,7 @@
+# Branching dependency
+A => B
+A => C
+# Expected: B = true, C = true
+
+= A
+? B C

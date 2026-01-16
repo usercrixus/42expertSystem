@@ -1,0 +1,6 @@
+# Biconditional with all false
+A + B <=> C
+# Expected: A = false, B = false, C = false
+
+=
+? A B C

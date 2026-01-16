@@ -30,6 +30,9 @@ $(TARGET): $(OBJS)
 test:
 	python scripts/run_tests.py
 
+testfail:
+	python scripts/run_tests.py --include-legacy --only-fail
+
 clean:
 	rm -f $(OBJS) $(TARGET)
 

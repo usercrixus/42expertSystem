@@ -1,0 +1,12 @@
+# Comprehensive all rules
+( ( A + B ) | ( C ^ D ) ) + !E <=> F + G
+# Expected: F = true, G = true
+
+H | I <=> F
+I ^ F <=> G
+H => J | !G
+# Expected: H = ambiguous, I = ambiguous, J = ambiguous
+
+# Use minimal facts to keep the system consistent
+= A B
+? F G H I J

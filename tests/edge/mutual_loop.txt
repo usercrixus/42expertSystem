@@ -1,0 +1,7 @@
+# Mutual loop without initial facts
+A => B
+B => A
+# Expected: A = false, B = false
+
+=
+? A B

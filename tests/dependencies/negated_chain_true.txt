@@ -1,0 +1,7 @@
+# Negated chain - true
+A => !B
+!B => C
+# Expected: C = true
+
+= A
+? C
