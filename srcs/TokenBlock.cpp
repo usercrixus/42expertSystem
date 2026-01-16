@@ -1,9 +1,15 @@
 #include "TokenBlock.hpp"
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 TokenBlock::TokenBlock(unsigned int priority) : priority(priority)
 {
+}
+
+TokenBlock::TokenBlock(unsigned int priority, char initial) : priority(priority)
+{
+    this->emplace_back(TokenEffect(initial));
 }
 
 TokenBlock::~TokenBlock()
@@ -104,4 +110,71 @@ unsigned int TokenBlock::getPriority() const
 void TokenBlock::setPriority(unsigned int p)
 {
     priority = p;
+}
+
+TokenBlock TokenBlock::withPriority(unsigned int new_priority) const
+{
+    TokenBlock copy(new_priority);
+    for (const TokenEffect &tk : *this)
+        copy.push_back(tk);
+    return copy;
+}
+
+TokenBlock TokenBlock::extractRange(size_t start, size_t end, unsigned int new_priority) const
+{
+    TokenBlock extracted(new_priority);
+    if (end > this->size())
+        end = this->size();
+    for (size_t i = start; i < end; ++i)
+        extracted.push_back((*this)[i]);
+    return extracted;
+}
+
+bool TokenBlock::hasOperator(char op) const
+{
+    for (const TokenEffect &tk : *this)
+    {
+        if (tk.type == op)
+            return true;
+    }
+    return false;
+}
+
+bool TokenBlock::hasAnyOperator(const std::vector<char> &ops) const
+{
+    for (const TokenEffect &tk : *this)
+    {
+        for (char op : ops)
+        {
+            if (tk.type == op)
+                return true;
+        }
+    }
+    return false;
+}
+
+void TokenBlock::appendTokens(const TokenBlock &other)
+{
+    for (const TokenEffect &tk : other)
+        this->push_back(tk);
+}
+
+std::string TokenBlock::structureToString() const
+{
+    std::ostringstream oss;
+    oss << "[priority=" << priority << ", size=" << this->size() << "]: ";
+    for (size_t i = 0; i < this->size(); ++i)
+    {
+        const TokenEffect &tk = (*this)[i];
+        if (tk.type == 0)
+            oss << "(null)";
+        else if (tk.type >= 'A' && tk.type <= 'Z')
+            oss << "'" << tk.type << "'";
+        else
+            oss << "op(" << tk.type << ")";
+        
+        if (i + 1 < this->size())
+            oss << " ";
+    }
+    return oss.str();
 }

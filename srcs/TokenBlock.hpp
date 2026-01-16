@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <string>
 #include "TokenEffect.hpp"
 
 /**
@@ -34,6 +35,7 @@ private:
 
 public:
     TokenBlock(unsigned int priority);
+    TokenBlock(unsigned int priority, char initial);
     ~TokenBlock();
     /**
      * resolve the whole token block
@@ -41,4 +43,28 @@ public:
     bool execute();
     unsigned int getPriority() const;
     void setPriority(unsigned int p);
+    /**
+     * Create a copy of this block with a different priority
+     */
+    TokenBlock withPriority(unsigned int new_priority) const;
+    /**
+     * Extract a range of tokens into a new block
+     */
+    TokenBlock extractRange(size_t start, size_t end, unsigned int new_priority) const;
+        /**
+     * Check if block contains a specific operator type
+     */
+    bool hasOperator(char op) const;
+    /**
+     * Check if block contains any of the specified operators
+     */
+    bool hasAnyOperator(const std::vector<char> &ops) const;
+    /**
+     * Append all tokens from another block
+     */
+    void appendTokens(const TokenBlock &other);
+    /**
+     * Get a debug string showing the structure of this block
+     */
+    std::string structureToString() const;
 };

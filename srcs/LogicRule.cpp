@@ -97,6 +97,136 @@ static bool hasNegatedParentheses(const std::vector<TokenBlock> &rhs)
     return false;
 }
 
+static bool needsParenthesesForNegation(const std::vector<TokenBlock> &blocks)
+{
+    // Multiple blocks always need parentheses
+    if (blocks.size() > 1)
+        return true;
+
+    if (blocks.size() == 1)
+        return blocks[0].hasAnyOperator({'+', '|', '^'});
+
+    return false;
+}
+
+static std::vector<TokenBlock> negateBlocks(const std::vector<TokenBlock> &blocks)
+{
+    std::vector<TokenBlock> negated;
+
+    bool any_non_empty = false;
+    for (const auto &b : blocks)
+        if (!b.empty())
+            { any_non_empty = true; break; }
+    if (!any_non_empty)
+        return negated;
+    
+    // Check for double negation: single block starting with !
+    if (blocks.size() == 1 && !blocks[0].empty() && blocks[0][0].type == '!')
+    {
+        TokenBlock simplified = blocks[0].extractRange(1, SIZE_MAX, blocks[0].getPriority());
+        if (!simplified.empty())
+            negated.push_back(simplified);
+        return negated;
+    }
+
+    bool needed = needsParenthesesForNegation(blocks);
+    if (needed)
+    {
+        // Add negation operator at base priority
+        negated.push_back(TokenBlock(0, '!'));
+        
+        // Find the minimum priority in the blocks
+        unsigned int min_priority = UINT_MAX;
+        for (const TokenBlock &block : blocks)
+        {
+            if (!block.empty() && block.getPriority() < min_priority)
+                min_priority = block.getPriority();
+        }
+        
+        // Add the blocks with increased priority (parentheses)
+        for (const TokenBlock &block : blocks)
+        {
+            if (block.empty())
+                continue;
+            unsigned int new_priority = block.getPriority() - min_priority + 1;
+            TokenBlock paren_block = block.withPriority(new_priority);
+            negated.push_back(paren_block);
+        }
+    }
+    else // single symbol or already has parentheses
+    {
+        TokenBlock neg_block(0, '!');
+
+        for (const TokenBlock &block : blocks)
+            if (!block.empty())
+                neg_block.appendTokens(block);
+        
+        if (!neg_block.empty())
+            negated.push_back(neg_block);
+    }
+    
+    return negated;
+}
+
+static void appendNegatedToLhs(std::vector<TokenBlock> &lhs, const std::vector<TokenBlock> &to_negate)
+{
+    if (to_negate.empty())
+        return;
+    
+    std::vector<TokenBlock> negated = negateBlocks(to_negate);
+    if (negated.empty())
+        return;
+
+    bool first_is_just_negation = (negated.size() > 1 && 
+                                   negated[0].getPriority() == 0 &&
+                                   negated[0].size() == 1 && 
+                                   negated[0][0].type == '!');
+    
+    if (first_is_just_negation)
+    {
+        // Merge '+' and '!' into the last LHS block if possible
+        if (!lhs.empty() && lhs.back().getPriority() == 0)
+        {
+            lhs.back().emplace_back(TokenEffect('+'));
+            lhs.back().emplace_back(TokenEffect('!'));
+            // Add remaining blocks (the parenthesized content)
+            lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
+        }
+        else
+        {
+            // Create new block with '+' and '!'
+            TokenBlock and_neg_block(0);
+            and_neg_block.emplace_back(TokenEffect('+'));
+            and_neg_block.emplace_back(TokenEffect('!'));
+            lhs.push_back(and_neg_block);
+            lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
+        }
+    }
+    else if (!lhs.empty() && lhs.back().getPriority() == 0 && 
+             !negated.empty() && negated[0].getPriority() == 0)
+    {
+        // Simple case: merge into last lhs block
+        lhs.back().emplace_back(TokenEffect('+'));
+        lhs.back().appendTokens(negated[0]);
+        lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
+    }
+    else
+    {
+        TokenBlock and_block(0, '+');
+        if (!negated.empty() && negated[0].getPriority() == 0)
+        {
+            and_block.appendTokens(negated[0]);
+            lhs.push_back(and_block);
+            lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
+        }
+        else
+        {
+            lhs.push_back(and_block);
+            lhs.insert(lhs.end(), negated.begin(), negated.end());
+        }
+    }
+}
+
 // apply De Morgan's law: !(A+B) = !A|!B and !(A|B) = !A+!B
 static std::vector<LogicRule> applyDeMorgan(const LogicRule &rule)
 {
@@ -151,9 +281,7 @@ static std::vector<LogicRule> applyDeMorgan(const LogicRule &rule)
     // Copy tokens before the negation operator in the same block
     if (neg_token_index > 0)
     {
-        TokenBlock prefix_block(base_priority);
-        for (size_t j = 0; j < neg_token_index; ++j)
-            prefix_block.push_back(neg_block[j]);
+        TokenBlock prefix_block = neg_block.extractRange(0, neg_token_index, base_priority);
         if (!prefix_block.empty())
             transformed_rhs.push_back(prefix_block);
     }
@@ -336,16 +464,12 @@ static std::vector<LogicRule> expandOrOperator(const LogicRule &rule, size_t blo
     std::vector<TokenBlock> left_rhs;
     left_rhs.insert(left_rhs.end(), rule.rhs.begin(), rule.rhs.begin() + block_index);
     
-    TokenBlock left_block(block.getPriority());
-    for (size_t k = 0; k < token_index; ++k)
-        left_block.push_back(rule.rhs[block_index][k]);
+    TokenBlock left_block = block.extractRange(0, token_index, block.getPriority());
     if (!left_block.empty())
         left_rhs.push_back(left_block);
     
     // Extract right operand (all tokens after OR)
-    TokenBlock right_block(block.getPriority());
-    for (size_t k = token_index + 1; k < rule.rhs[block_index].size(); ++k)
-        right_block.push_back(rule.rhs[block_index][k]);
+    TokenBlock right_block = block.extractRange(token_index + 1, SIZE_MAX, block.getPriority());
     
     std::vector<TokenBlock> right_rhs;
     if (!right_block.empty())
@@ -353,49 +477,15 @@ static std::vector<LogicRule> expandOrOperator(const LogicRule &rule, size_t blo
     right_rhs.insert(right_rhs.end(), rule.rhs.begin() + block_index + 1, rule.rhs.end());
     
     // Create rule 1: A + !left => right
-    std::vector<TokenBlock> new_lhs_1 = rule.lhs;
-    if (!left_block.empty())
-    {
-        new_lhs_1.push_back(TokenBlock(0));
-        new_lhs_1.back().emplace_back(TokenEffect('+'));
-        // Check double negation
-        if (!left_block.empty() && left_block[0].type == '!')
-        {
-            TokenBlock simplified_block(0);
-            for (size_t i = 1; i < left_block.size(); ++i)
-                simplified_block.push_back(left_block[i]);
-            new_lhs_1.push_back(simplified_block);
-        } else {
-            TokenBlock neg_block(0);
-            neg_block.emplace_back(TokenEffect('!'));
-            for (const TokenEffect &tk : left_block)
-                neg_block.push_back(tk);
-            new_lhs_1.push_back(neg_block);
-        }
-    }
+    std::vector<TokenBlock> new_lhs_1 = rule.lhs; // existing LHS
+    if (!left_rhs.empty())
+        appendNegatedToLhs(new_lhs_1, left_rhs);
     or_rules.emplace_back(TokenEffect('>'), new_lhs_1, right_rhs);
     
     // Create rule 2: A + !right => left
     std::vector<TokenBlock> new_lhs_2 = rule.lhs;
-    if (!right_block.empty())
-    {
-        new_lhs_2.push_back(TokenBlock(0));
-        new_lhs_2.back().emplace_back(TokenEffect('+'));
-        // Check double negation
-        if (!right_block.empty() && right_block[0].type == '!')
-        {
-            TokenBlock simplified_block(0);
-            for (size_t i = 1; i < right_block.size(); ++i)
-                simplified_block.push_back(right_block[i]);
-            new_lhs_2.push_back(simplified_block);
-        } else  {
-            TokenBlock neg_block(0);
-            neg_block.emplace_back(TokenEffect('!'));
-            for (const TokenEffect &tk : right_block)
-                neg_block.push_back(tk);
-            new_lhs_2.push_back(neg_block);
-        }
-    }
+    if (!right_rhs.empty())
+        appendNegatedToLhs(new_lhs_2, right_rhs);
     or_rules.emplace_back(TokenEffect('>'), new_lhs_2, left_rhs);
     
     return or_rules;
@@ -413,17 +503,13 @@ static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t bl
     // Extract left operand
     std::vector<TokenBlock> left_rhs;
     left_rhs.insert(left_rhs.end(), rule.rhs.begin(), rule.rhs.begin() + block_index);
-    
-    TokenBlock left_block(block.getPriority());
-    for (size_t k = 0; k < token_index; ++k)
-        left_block.push_back(rule.rhs[block_index][k]);
+
+    TokenBlock left_block = block.extractRange(0, token_index, block.getPriority());
     if (!left_block.empty())
         left_rhs.push_back(left_block);
     
     // Extract right operand
-    TokenBlock right_block(block.getPriority());
-    for (size_t k = token_index + 1; k < rule.rhs[block_index].size(); ++k)
-        right_block.push_back(rule.rhs[block_index][k]);
+    TokenBlock right_block = block.extractRange(token_index + 1, block.size(), block.getPriority());
     
     std::vector<TokenBlock> right_rhs;
     if (!right_block.empty())
@@ -432,62 +518,32 @@ static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t bl
     
     // Rule 1: A + !left => right
     std::vector<TokenBlock> new_lhs_1 = rule.lhs;
-    if (!left_block.empty())
-    {
-        new_lhs_1.push_back(TokenBlock(0));
-        new_lhs_1.back().emplace_back(TokenEffect('+'));
-        
-        TokenBlock neg_block(0);
-        neg_block.emplace_back(TokenEffect('!'));
-        for (const TokenEffect &tk : left_block)
-            neg_block.push_back(tk);
-        new_lhs_1.push_back(neg_block);
-    }
+    if (!left_rhs.empty())
+        appendNegatedToLhs(new_lhs_1, left_rhs);
     xor_rules.emplace_back(TokenEffect('>'), new_lhs_1, right_rhs);
     
     // Rule 2: A + !right => left
     std::vector<TokenBlock> new_lhs_2 = rule.lhs;
     if (!right_block.empty())
-    {
-        new_lhs_2.push_back(TokenBlock(0));
-        new_lhs_2.back().emplace_back(TokenEffect('+'));
-        
-        TokenBlock neg_block(0);
-        neg_block.emplace_back(TokenEffect('!'));
-        for (const TokenEffect &tk : right_block)
-            neg_block.push_back(tk);
-        new_lhs_2.push_back(neg_block);
-    }
+        appendNegatedToLhs(new_lhs_2, right_rhs);
     xor_rules.emplace_back(TokenEffect('>'), new_lhs_2, left_rhs);
     
     // Rule 3: A => !(left + right)
     std::vector<TokenBlock> constraint_rhs;
-    // Add negation operator at base priority
-    TokenBlock neg_op(0);
-    neg_op.emplace_back(TokenEffect('!'));
-    constraint_rhs.push_back(neg_op);
+    for (const TokenBlock &blk : left_rhs)
+        constraint_rhs.push_back(blk);
+    constraint_rhs.push_back(TokenBlock(block.getPriority(), '+'));
+    for (const TokenBlock &blk : right_rhs)
+        constraint_rhs.push_back(blk);
     
-    // Add left operand at higher priority (will be parenthesized)
-    TokenBlock paren_left = left_block;
-    paren_left.setPriority(1);
-    constraint_rhs.push_back(paren_left);
+    std::vector<TokenBlock> negated_constraint = negateBlocks(constraint_rhs);
     
-    // Add AND operator at higher priority (inside parentheses)
-    TokenBlock and_op(1);
-    and_op.emplace_back(TokenEffect('+'));
-    constraint_rhs.push_back(and_op);
-    
-    // Add right operand at higher priority (will be parenthesized)
-    TokenBlock paren_right = right_block;
-    paren_right.setPriority(1);
-    constraint_rhs.push_back(paren_right);
-    
-    xor_rules.emplace_back(TokenEffect('>'), rule.lhs, constraint_rhs);
+    xor_rules.emplace_back(TokenEffect('>'), rule.lhs, negated_constraint);
     
     return xor_rules;
 }
 
-static std::vector<LogicRule> expandOrInRhs(const LogicRule &rule)
+static std::vector<LogicRule> expandRhs(const LogicRule &rule)
 {
     std::vector<LogicRule> result;
     
@@ -589,7 +645,7 @@ std::vector<BasicRule> LogicRule::deduceBasics() const
             extractBasicRules(current, origin, basics);
         else
         {
-            std::vector<LogicRule> expanded = expandOrInRhs(current);
+            std::vector<LogicRule> expanded = expandRhs(current);
             for (const LogicRule &rule : expanded)
             {
                 to_process.push({rule, origin});

@@ -54,17 +54,28 @@ static bool evaluateSide(const std::vector<TokenBlock> &side, const std::map<cha
     
     for (const TokenBlock &block : side)
     {
-        for (const TokenEffect &tk : block)
+        for (size_t i = 0; i < block.size(); ++i)
         {
+            const TokenEffect &tk = block[i];
             if (tk.type >= 'A' && tk.type <= 'Z')
             {
                 auto it = values.find(tk.type);
-                stack.push_back(it != values.end() ? it->second : false);
+                bool val = it != values.end() ? it->second : false;
+                if (i > 0 && block[i - 1].type == '!')
+                {
+                    val = !val;
+                }
+                
+                stack.push_back(val);
             }
             else if (tk.type == '!')
             {
-                // Negate top of stack
-                if (!stack.empty())
+                if (i + 1 < block.size() && block[i + 1].type >= 'A' && block[i + 1].type <= 'Z')
+                {
+                    // Skip - the variable will handle its own negation
+                    continue;
+                }
+                else if (!stack.empty())
                 {
                     stack.back() = !stack.back();
                 }

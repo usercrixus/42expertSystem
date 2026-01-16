@@ -1,12 +1,12 @@
 # Ambiguous test B and C are ambiguous
 
-# A => B | C
+A => B | C
 # equivalent
 A + !C => B
 A + !B => C
 
 # = A
-# ? B C
+# ? B C D
 
 # Selon l'ordre deux etats possible donc ambigu :
 # Etat possible 1 :
@@ -22,6 +22,7 @@ A + !B => C
 # 1ere regle optionnelle juste la pour verifier que les interdependance soient pas marque ambigus tt le temps
 
 !E => D
+D => !E
 
 = A
 ? B C D E

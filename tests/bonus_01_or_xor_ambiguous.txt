@@ -9,9 +9,9 @@ D => E ^ F
 # Expected: E = ambiguous, F = ambiguous
 
 # Test 3: OR in conclusion used by another rule
-G => H | I
+G => H | I | K
 H => J
-# Expected: H and I ambiguous, J becomes ambiguous
+# Expected: H, K and I ambiguous, J becomes ambiguous
 
-= A D G H K
-? B C E F I J
+= A D G H
+? B C E F I J K
