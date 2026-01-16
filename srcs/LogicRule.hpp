@@ -16,7 +16,9 @@ public:
 
     LogicRule();
     LogicRule(const TokenEffect &arrow_token, std::vector<TokenBlock> lhs_blocks, std::vector<TokenBlock> rhs_blocks);
+    /** convert to string */
     std::string toString() const;
+    /** expand rule into basic rules (RHS with single variable) */
     std::vector<BasicRule> deduceBasics() const;
 };
 
