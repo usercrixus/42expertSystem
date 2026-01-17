@@ -1,7 +1,7 @@
 # XOR in conclusion forced by negation
 A => B ^ C
 A => !C
-# Expected: B = ambiguous, C = ambiguous
+# Expected: B = true, C = false
 
 = A
 ? B C

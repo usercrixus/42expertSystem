@@ -1,0 +1,9 @@
+# Simple contradiction without initial fact
+!A => A
+# Expected: A = true
+
+=
+? A
+
+# WARNING : not sure if subject demands to be able to deal with this case
+# Maybe too complex for simple subject demands

@@ -1,7 +1,7 @@
 # Mutual negation
 !A => B
 B => !A
-# Expected: A = ambiguous, B = true
+# Expected: A = false, B = true
 
 =
 ? A B

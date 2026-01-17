@@ -3,9 +3,9 @@
 # Expected: F = true, G = true
 
 H | I <=> F
-I ^ F <=> G
-H => J | !G
-# Expected: H = ambiguous, I = ambiguous, J = ambiguous
+G => J ^ F 
+H | I => K
+# Expected: H = ambiguous, I = ambiguous, J = false, K = true
 
 # Use minimal facts to keep the system consistent
 = A B

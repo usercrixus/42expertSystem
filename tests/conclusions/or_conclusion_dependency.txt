@@ -2,7 +2,7 @@
 A => B | C
 B => D
 C => D
-# Expected: B = ambiguous, C = ambiguous, D = ambiguous
+# Expected: B = ambiguous, C = ambiguous, D = true
 
 = A
 ? B C D

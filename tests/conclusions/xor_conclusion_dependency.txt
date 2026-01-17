@@ -2,7 +2,7 @@
 A => C
 A => B ^ C
 !B => D
-# Expected: B = false, C = ambiguous, D = ambiguous
+# Expected: B = false, C = true, D = true
 
 = A
 ? B C D
