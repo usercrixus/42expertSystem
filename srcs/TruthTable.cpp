@@ -48,69 +48,69 @@ std::ostream &operator<<(std::ostream &os, const VariableState &state)
     return os;
 }
 
+static unsigned int getMaxPriority(const std::vector<TokenBlock> &fact)
+{
+    unsigned int maxPriority = 0;
+    for (const TokenBlock &token_block : fact)
+    {
+        if (token_block.getPriority() > maxPriority)
+            maxPriority = token_block.getPriority();
+    }
+    return maxPriority;
+}
+
+static bool resolveLeft(std::vector<TokenBlock> &fact)
+{
+    if (fact.empty())
+        return false;
+    while (true)
+    {
+        unsigned int priority = getMaxPriority(fact);
+        for (size_t i = 0; i < fact.size();)
+        {
+            if (fact[i].getPriority() == priority)
+            {
+                fact[i].execute();
+                if (i != 0)
+                {
+                    fact[i - 1].push_back(fact[i][0]);
+                    fact.erase(fact.begin() + i);
+                    continue;
+                }
+                if (fact.size() > 1)
+                {
+                    fact[1].insert(fact[1].begin(), fact[0][0]);
+                    fact.erase(fact.begin());
+                    continue;
+                }
+                fact[i].setPriority(0);
+            }
+            ++i;
+        }
+        if (fact.size() == 1)
+        {
+            if (fact[0].size() > 1)
+                fact[0].execute();
+            return fact[0][0].effect;
+        }
+    }
+}
+
 static bool evaluateSide(const std::vector<TokenBlock> &side, const std::map<char, bool> &values)
 {
-    std::vector<bool> stack;
-    
-    for (const TokenBlock &block : side)
+    std::vector<TokenBlock> blocks = side;
+    for (TokenBlock &block : blocks)
     {
-        for (size_t i = 0; i < block.size(); ++i)
+        for (TokenEffect &tk : block)
         {
-            const TokenEffect &tk = block[i];
             if (tk.type >= 'A' && tk.type <= 'Z')
             {
                 auto it = values.find(tk.type);
-                bool val = it != values.end() ? it->second : false;
-                if (i > 0 && block[i - 1].type == '!')
-                {
-                    val = !val;
-                }
-                
-                stack.push_back(val);
-            }
-            else if (tk.type == '!')
-            {
-                if (i + 1 < block.size() && block[i + 1].type >= 'A' && block[i + 1].type <= 'Z')
-                {
-                    // Skip - the variable will handle its own negation
-                    continue;
-                }
-                else if (!stack.empty())
-                {
-                    stack.back() = !stack.back();
-                }
-            }
-            else if (tk.type == '+')  // AND
-            {
-                if (stack.size() >= 2)
-                {
-                    bool b = stack.back(); stack.pop_back();
-                    bool a = stack.back(); stack.pop_back();
-                    stack.push_back(a && b);
-                }
-            }
-            else if (tk.type == '|')  // OR
-            {
-                if (stack.size() >= 2)
-                {
-                    bool b = stack.back(); stack.pop_back();
-                    bool a = stack.back(); stack.pop_back();
-                    stack.push_back(a || b);
-                }
-            }
-            else if (tk.type == '^')  // XOR
-            {
-                if (stack.size() >= 2)
-                {
-                    bool b = stack.back(); stack.pop_back();
-                    bool a = stack.back(); stack.pop_back();
-                    stack.push_back(a != b);
-                }
+                tk.effect = (it != values.end()) ? it->second : false;
             }
         }
     }
-    
-    return !stack.empty() ? stack.back() : false;
+    return resolveLeft(blocks);
 }
 
 static std::set<char> collectVariables(const std::vector<TokenBlock> &side)
@@ -186,6 +186,21 @@ TruthTable TruthTable::filterByFacts(const std::map<char, bool> &known_facts) co
     return filtered;
 }
 
+TruthTable TruthTable::filterByResults(const std::set<char> &initial_facts, const std::map<char, rhr_value_e> &base_results) const
+{
+    std::map<char, bool> known_facts;
+    for (char fact : initial_facts)
+        known_facts[fact] = true;
+    for (const auto &entry : base_results)
+    {
+        if (entry.second == R_TRUE)
+            known_facts[entry.first] = true;
+        else if (entry.second == R_FALSE)
+            known_facts[entry.first] = false;
+    }
+    return filterByFacts(known_facts);
+}
+
 TruthTable TruthTable::conjunction(const TruthTable &t1, const TruthTable &t2)
 {
     TruthTable result;
@@ -253,6 +268,15 @@ bool TruthTable::mustBeFalse(char var) const
 {
     std::set<bool> possible = getPossibleValues(var);
     return possible.size() == 1 && *possible.begin() == false;
+}
+
+rhr_value_e TruthTable::clampValue(char var, rhr_value_e current) const
+{
+    if (mustBeTrue(var))
+        return R_TRUE;
+    if (mustBeFalse(var))
+        return R_FALSE;
+    return current;
 }
 
 std::string TruthTable::toString() const

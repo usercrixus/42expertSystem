@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <ostream>
+#include "ReasoningTypes.hpp"
 
 struct BasicRule;
 struct TokenBlock;
@@ -47,6 +48,8 @@ struct TruthTable
     size_t countValidStates() const { return valid_states.size(); }
     /** filter states by known facts */
     TruthTable filterByFacts(const std::map<char, bool> &known_facts) const;
+    /** filter states by known facts derived from base results and initial facts */
+    TruthTable filterByResults(const std::set<char> &initial_facts, const std::map<char, rhr_value_e> &base_results) const;
     /** combine two truth tables */
     static TruthTable conjunction(const TruthTable &t1, const TruthTable &t2);
     /** combine multiple truth tables */
@@ -57,6 +60,8 @@ struct TruthTable
     bool mustBeTrue(char var) const;
     /** check if variable must be false in all valid states */
     bool mustBeFalse(char var) const;
+    /** clamp a tri-state value using this truth table, when available */
+    rhr_value_e clampValue(char var, rhr_value_e current) const;
     
     /** convert to string */
     std::string toString() const;

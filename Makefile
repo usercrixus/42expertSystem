@@ -12,6 +12,7 @@ SRCS := srcs/main.cpp \
         srcs/Parser.cpp \
         srcs/TokenBlock.cpp \
         srcs/TokenEffect.cpp \
+        srcs/ReasoningStep.cpp \
         srcs/Resolver.cpp \
 		srcs/LogicRule.cpp \
 		srcs/TruthTable.cpp \

@@ -1,82 +1,181 @@
 #pragma once
 #include <vector>
 #include "LogicRule.hpp"
+#include "ReasoningStep.hpp"
+#include "ReasoningTypes.hpp"
+#include "TruthTable.hpp"
+#include <map>
 #include <set>
 #include <unordered_map>
 #include <string>
 
-enum rhr_status_e
-{
-	NOT,
-	AMBIGOUS,
-	TRUE,
-	FALSE
-};
-
-enum rhr_value_e
-{
-	R_FALSE,
-	R_AMBIGOUS,
-	R_TRUE
-};
-
-struct ReasoningStep
-{
-	std::string description;
-	char symbol;
-	const BasicRule* rule;
-	rhr_value_e conclusion;
-	bool lhs_fired;
-};
-
+/**
+ * Resolves queries using rule evaluation and optional truth-table constraints.
+ **/
 class Resolver
 {
 private:
+	/**
+	 * Aggregates definite/possible outcomes during rule evaluation.
+	 **/
+	struct RuleOutcome
+	{
+		/** rule set proves the symbol true */
+		bool definite_true;
+		/** rule set proves the symbol false */
+		bool definite_false;
+		/** rule set may prove the symbol true */
+		bool possible_true;
+		/** rule set may prove the symbol false */
+		bool possible_false;
+	};
+
+	/**
+	 * Internal tri-state token used during expression evaluation.
+	 **/
 	struct TriToken
 	{
+		/** token type (operator or symbol). */
 		char type;
+		/** resolved value for the token. */
 		rhr_value_e value;
+		/** whether the value has been computed. */
 		bool has_value;
 	};
 
+	/**
+	 * Token block with a parsing priority.
+	 **/
 	struct TriBlock
 	{
+		/** operator precedence level for this block. */
 		unsigned int priority;
+		/** ordered tokens belonging to the block. */
 		std::vector<TriToken> tokens;
 	};
 
+	/** query symbols to resolve. */
 	std::set<char> querie;
+	/** rules deduced from parsing logic expressions. */
 	std::vector<BasicRule> &basic_rules;
+	/** initial facts provided by the input file. */
 	std::set<char> initial_facts;
+	/** optional global truth table constraints. */
+	const TruthTable *truth_table;
+	/** trace recorder for --explain output. */
+	ReasoningStep reasoning;
+	/** memoized results for already-proven symbols. */
 	std::unordered_map<char, rhr_value_e> memo;
+	/** recursion tracking to detect cycles. */
 	std::unordered_map<char, bool> visiting;
-	bool initial_cached = false;
-	std::vector<ReasoningStep> current_trace;
-	rhr_value_e evalLHS(std::vector<TokenBlock> lhs);
-	rhr_value_e resolveLeftTri(std::vector<TriBlock> &blocks);
-	rhr_value_e executeTriBlock(std::vector<TriToken> &tokens);
-	void executeNotTri(std::vector<TriToken> &tokens);
-	void executeOthersTri(std::vector<TriToken> &tokens, char op_target);
-	rhr_value_e getTokenValue(TriToken &token, bool negated_context);
-	rhr_value_e prove(char q, bool negated_context);
-	void recordInitialFact(char q);
-	void recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired);
-	void recordMemoHit(char q, rhr_value_e val);
-	void printTrace(char q, rhr_value_e result);
+
+	/**
+	 * Clear memoization and recursion tracking for a new resolution.
+	 **/
+	void resetEvaluationState();
+	/**
+	 * Resolve a symbol with recursion and memoization.
+	 **/
+	rhr_value_e prove(char q, bool negated_context, bool direct_negation);
+	/**
+	 * Check memo cache and record a trace if hit.
+	 **/
+	bool handleMemoHit(char q, rhr_value_e &result);
+	/**
+	 * Check initial facts and record a trace if matched.
+	 **/
+	bool handleInitialFact(char q, rhr_value_e &result);
+	/**
+	 * Handle recursion cycles based on negation context.
+	 **/
+	bool handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result);
+	/**
+	 * Decide whether negation-as-failure is allowed for a rule.
+	 **/
+	bool allowNegationAsFailure(const BasicRule &rule) const;
+	/**
+	 * Accumulate outcome flags from a single rule evaluation.
+	 **/
+	void updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome);
+	/**
+	 * Finalize the boolean outcome into a tri-state value.
+	 **/
+	rhr_value_e finalizeOutcome(const RuleOutcome &outcome) const;
+	/**
+	 * Evaluate a tokenized LHS with tri-state semantics.
+	 **/
+	rhr_value_e evalLHS(std::vector<TokenBlock> lhs, bool allow_negation_as_failure);
+	/**
+	 * Reduce grouped token blocks by precedence.
+	 **/
+	rhr_value_e resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_negation_as_failure);
+	/**
+	 * Execute a single token block with tri-state operators.
+	 **/
+	rhr_value_e executeTriBlock(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure);
+	/**
+	 * Apply NOT operations for a tri-state token block.
+	 **/
+	void executeNotTri(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure);
+	/**
+	 * Apply a specific binary operator for a tri-state token block.
+	 **/
+	void executeOthersTri(std::vector<TriToken> &tokens, char op_target, bool negated_context);
+	/**
+	 * Resolve a token value, proving symbols as needed.
+	 **/
+	rhr_value_e getTokenValue(TriToken &token, bool negated_context, bool direct_negation);
+	/**
+	 * get the max priority of a std::vector<TokenBlock>
+	 */
 	unsigned int getMaxPriority(std::vector<TokenBlock> &fact);
+	/**
+	 * Resolve the lhs of a boolean equation.
+	 * Should end with a vector<TokenBlock> of size 1
+	 */
 	void resolveLeft(std::vector<TokenBlock> &fact);
 	/**
-	 * Display initial facts
-	 */
-	void printInitialFact();
+	 * Expand the set of facts used for truth table filtering.
+	 **/
+	std::set<char> buildTruthTableFacts(const std::set<char> &queries) const;
+	/**
+	 * Build a filtered truth table from known facts.
+	 **/
+	bool buildFilteredTruthTable(const std::map<char, rhr_value_e> &base_results, TruthTable &filtered) const;
+	/**
+	 * Print the final result for a query.
+	 **/
+	void outputResult(char q, rhr_value_e res);
 
 public:
-	Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts);
+	/**
+	 * Construct the resolver with rules, facts, and an optional truth table.
+	 **/
+	Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts, const TruthTable *truth_table = nullptr);
+	/**
+	 * Destroy the resolver.
+	 **/
 	~Resolver();
 	/**
-	 * Resolve all queries and optionally print the reasoning trace.
+	 * Access the reasoning trace helper.
+	 **/
+	ReasoningStep &getReasoning();
+	/**
+	 * Access the reasoning trace helper (const).
+	 **/
+	const ReasoningStep &getReasoning() const;
+	/**
+	 * Resolve all queries and print standard results.
 	 */
-	void resolveQuerie(bool print_trace = true);
+	void resolveQuerie();
+	/**
+	 * Resolve one query with optional truth-table clamping.
+	 */
+	rhr_value_e resolveQuery(char q, const TruthTable &filtered, bool has_truth_table);
+	/**
+	 * Compute base results for a set of symbols.
+	 */
+	std::map<char, rhr_value_e> computeBaseResults(const std::set<char> &facts);
 	/**
 	 * Update initial facts and clear resolver caches before re-evaluating queries.
 	 */
