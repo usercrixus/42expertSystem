@@ -1,0 +1,8 @@
+# Priority check
+
+A | B + C => D | E + F
+
+# Expected: D = ambiguous, E = ambiguous, F = ambiguous
+
+= A
+? D E F
