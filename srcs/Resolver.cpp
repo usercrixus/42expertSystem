@@ -102,20 +102,8 @@ bool Resolver::handleVisiting(char q, bool negated_context, bool direct_negation
 bool Resolver::allowNegationAsFailure(const BasicRule &rule) const
 {
     if (rule.origin == nullptr)
-        return true;
-    const std::vector<TokenBlock> *sides[] = {&rule.origin->lhs, &rule.origin->rhs};
-    for (const std::vector<TokenBlock> *side : sides)
-    {
-        for (const TokenBlock &block : *side)
-        {
-            for (const TokenEffect &tk : block)
-            {
-                if (tk.type == '|' || tk.type == '^')
-                    return false;
-            }
-        }
-    }
-    return true;
+        return false;
+    return false;
 }
 
 void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome)
@@ -297,9 +285,9 @@ rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negate
     if (tokens.empty())
         throw std::logic_error("TriBlock::execute: empty block");
     executeNotTri(tokens, negated_context, allow_negation_as_failure);
-    executeOthersTri(tokens, '^', negated_context);
-    executeOthersTri(tokens, '|', negated_context);
     executeOthersTri(tokens, '+', negated_context);
+    executeOthersTri(tokens, '|', negated_context);
+    executeOthersTri(tokens, '^', negated_context);
     if (tokens.size() != 1)
         throw std::logic_error("TriBlock::execute: reduction did not converge");
     return getTokenValue(tokens[0], negated_context, false);

@@ -186,17 +186,24 @@ static void appendNegatedToLhs(std::vector<TokenBlock> &lhs, const std::vector<T
     if (negated.empty())
         return;
 
-    if (!lhs.empty())
+    bool lhs_simple = lhs.size() == 1 && lhs[0].hasAnyOperator({'+', '|', '^'}) == false;
+    if (!lhs.empty() && !lhs_simple)
         parenthesizeBlocks(lhs);
-    
     TokenBlock and_block(0, '+');
+    if (lhs_simple)
+        lhs[0].appendTokens(and_block);
     if (negated[0].getPriority() == 0)
     {
-        and_block.appendTokens(negated[0]);
-        lhs.push_back(and_block);
+        if (lhs_simple)
+            lhs[0].appendTokens(negated[0]);
+        else {
+            and_block.appendTokens(negated[0]);
+            lhs.push_back(and_block);
+        }
         lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
     } else {
-        lhs.push_back(and_block);
+        if (!lhs_simple)
+            lhs.push_back(and_block);
         lhs.insert(lhs.end(), negated.begin(), negated.end());
     }
 }
