@@ -3,7 +3,7 @@
 #include <map>
 #include <stdexcept>
 
-Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts, const TruthTable *truth_table)
+Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts, const TruthTable &truth_table)
     : querie(querie),
       basic_rules(basic_rules),
       initial_facts(initial_facts),
@@ -15,17 +15,6 @@ Resolver::Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, s
 Resolver::~Resolver()
 {
 }
-
-ReasoningStep &Resolver::getReasoning()
-{
-    return reasoning;
-}
-
-const ReasoningStep &Resolver::getReasoning() const
-{
-    return reasoning;
-}
-
 static rhr_value_e resolveNot(rhr_value_e v)
 {
     if (v == R_TRUE)
@@ -64,77 +53,7 @@ void Resolver::resetEvaluationState()
 {
     memo.clear();
     visiting.clear();
-}
-
-bool Resolver::handleMemoHit(char q, rhr_value_e &result)
-{
-    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
-    if (memoIt == memo.end())
-        return false;
-    reasoning.recordMemoHit(q, memoIt->second);
-    result = memoIt->second;
-    return true;
-}
-
-bool Resolver::handleInitialFact(char q, rhr_value_e &result)
-{
-    auto initiaTrueIt = initial_facts.find(q);
-    if (initiaTrueIt == initial_facts.end())
-        return false;
-    reasoning.recordInitialFact(q);
-    result = R_TRUE;
-    memo[q] = result;
-    return true;
-}
-
-bool Resolver::handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result)
-{
-    std::unordered_map<char, bool>::iterator visitingIt = visiting.find(q);
-    if (visitingIt == visiting.end())
-        return false;
-    if (visitingIt->second != negated_context)
-        result = direct_negation ? R_FALSE : R_AMBIGOUS;
-    else
-        result = R_FALSE;
-    return true;
-}
-
-bool Resolver::allowNegationAsFailure(const BasicRule &rule) const
-{
-    if (rule.origin == nullptr)
-        return true;
-    const std::vector<TokenBlock> *sides[] = {&rule.origin->lhs, &rule.origin->rhs};
-    for (const std::vector<TokenBlock> *side : sides)
-    {
-        for (const TokenBlock &block : *side)
-        {
-            for (const TokenEffect &tk : block)
-            {
-                if (tk.type == '|' || tk.type == '^')
-                    return false;
-            }
-        }
-    }
-    return true;
-}
-
-void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome)
-{
-    if (lhs_result == R_TRUE)
-    {
-        if (!rule.rhs_negated)
-            outcome.definite_true = true;
-        else
-            outcome.definite_false = true;
-        return;
-    }
-    if (lhs_result == R_AMBIGOUS)
-    {
-        if (!rule.rhs_negated)
-            outcome.possible_true = true;
-        else
-            outcome.possible_false = true;
-    }
+    reasoning.reset();
 }
 
 rhr_value_e Resolver::finalizeOutcome(const RuleOutcome &outcome) const
@@ -190,37 +109,6 @@ void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
     }
     if (fact.size() > 0)
         resolveLeft(fact);
-}
-
-rhr_value_e Resolver::prove(char q, bool negated_context, bool direct_negation)
-{
-    rhr_value_e result = R_FALSE;
-    if (handleMemoHit(q, result))
-        return result;
-    if (handleInitialFact(q, result))
-        return result;
-    if (handleVisiting(q, negated_context, direct_negation, result))
-        return result;
-
-    visiting[q] = negated_context;
-
-    RuleOutcome outcome = {false, false, false, false};
-    for (const BasicRule &rule : basic_rules)
-    {
-        if (rule.rhs_symbol != q)
-            continue;
-        std::vector<TokenBlock> lhs = rule.lhs;
-        bool allow_negation_as_failure = allowNegationAsFailure(rule);
-        rhr_value_e lhs_result = evalLHS(lhs, allow_negation_as_failure);
-        reasoning.recordRuleConsidered(q, &rule, lhs_result == R_TRUE);
-        updateOutcomeFromRule(lhs_result, rule, outcome);
-    }
-
-    visiting.erase(q);
-
-    result = finalizeOutcome(outcome);
-    memo[q] = result;
-    return result;
 }
 
 rhr_value_e Resolver::getTokenValue(TriToken &token, bool negated_context, bool direct_negation)
@@ -356,6 +244,25 @@ rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_n
     }
 }
 
+void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome)
+{
+    if (lhs_result == R_TRUE)
+    {
+        if (!rule.rhs_negated)
+            outcome.definite_true = true;
+        else
+            outcome.definite_false = true;
+        return;
+    }
+    if (lhs_result == R_AMBIGOUS)
+    {
+        if (!rule.rhs_negated)
+            outcome.possible_true = true;
+        else
+            outcome.possible_false = true;
+    }
+}
+
 rhr_value_e Resolver::evalLHS(std::vector<TokenBlock> lhs, bool allow_negation_as_failure)
 {
     std::vector<TriBlock> blocks;
@@ -378,12 +285,108 @@ rhr_value_e Resolver::evalLHS(std::vector<TokenBlock> lhs, bool allow_negation_a
     return resolveLeftTri(blocks, allow_negation_as_failure);
 }
 
-std::set<char> Resolver::buildTruthTableFacts(const std::set<char> &queries) const
+bool Resolver::allowNegationAsFailure(const BasicRule &rule)
 {
-    std::set<char> facts_for_truth_table = queries;
-    if (truth_table != nullptr)
-        facts_for_truth_table.insert(truth_table->variables.begin(), truth_table->variables.end());
-    return facts_for_truth_table;
+    if (rule.origin == nullptr)
+        return true;
+    const std::vector<TokenBlock> *sides[] = {&rule.origin->lhs, &rule.origin->rhs};
+    for (const std::vector<TokenBlock> *side : sides)
+    {
+        for (const TokenBlock &block : *side)
+        {
+            for (const TokenEffect &tk : block)
+            {
+                if (tk.type == '|' || tk.type == '^')
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool Resolver::handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result)
+{
+    std::unordered_map<char, bool>::iterator visitingIt = visiting.find(q);
+    if (visitingIt == visiting.end())
+        return false;
+    if (visitingIt->second != negated_context)
+        result = direct_negation ? R_FALSE : R_AMBIGOUS;
+    else
+        result = R_FALSE;
+    return true;
+}
+
+bool Resolver::handleQInitialFact(char q, rhr_value_e &result)
+{
+    auto initiaTrueIt = initial_facts.find(q);
+    if (initiaTrueIt == initial_facts.end())
+        return false;
+    reasoning.recordInitialFact(q);
+    result = R_TRUE;
+    memo[q] = result;
+    return true;
+}
+
+bool Resolver::handleQMemo(char q, rhr_value_e &result)
+{
+    std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
+    if (memoIt == memo.end())
+        return false;
+    reasoning.recordMemoHit(q, memoIt->second);
+    result = memoIt->second;
+    return true;
+}
+
+bool Resolver::isQHandled(char q, rhr_value_e &result, bool negated_context, bool direct_negation)
+{
+    if (handleQMemo(q, result) || handleQInitialFact(q, result) || handleVisiting(q, negated_context, direct_negation, result))
+        return true;
+    return false;
+}
+
+rhr_value_e Resolver::prove(char q, bool negated_context, bool direct_negation)
+{
+    rhr_value_e result = R_FALSE;
+    if (isQHandled(q, result, negated_context, direct_negation))
+        return result;
+    visiting[q] = negated_context;
+
+    bool has_rule = false;
+    RuleOutcome outcome = {false, false, false, false};
+    for (const BasicRule &rule : basic_rules)
+    {
+        if (rule.rhs_symbol == q)
+        {
+            has_rule = true;
+            rhr_value_e lhs_result = evalLHS(rule.lhs, allowNegationAsFailure(rule));
+            reasoning.recordRuleConsidered(q, &rule, lhs_result == R_TRUE);
+            updateOutcomeFromRule(lhs_result, rule, outcome);
+        }
+    }
+
+    visiting.erase(q);
+
+    if (!has_rule && negated_context && !direct_negation)
+        result = R_AMBIGOUS;
+    else
+        result = finalizeOutcome(outcome);
+    memo[q] = result;
+    return result;
+}
+
+void Resolver::outputResult(char q, rhr_value_e res)
+{
+    std::string resultStr = (res == R_TRUE ? "true" : res == R_FALSE ? "false"
+                                                                     : "ambiguous");
+    std::cout << q << " = " << resultStr << std::endl;
+}
+
+bool Resolver::buildFilteredTruthTable(const std::map<char, rhr_value_e> &base_results, TruthTable &filtered) const
+{
+    if (!truth_table.hasValidState())
+        return false;
+    filtered = truth_table.filterByResults(initial_facts, base_results);
+    return filtered.hasValidState();
 }
 
 std::map<char, rhr_value_e> Resolver::computeBaseResults(const std::set<char> &facts)
@@ -392,46 +395,18 @@ std::map<char, rhr_value_e> Resolver::computeBaseResults(const std::set<char> &f
     for (char q : facts)
     {
         resetEvaluationState();
-        reasoning.reset();
         base_results[q] = prove(q, false, false);
     }
     return base_results;
 }
 
-bool Resolver::buildFilteredTruthTable(const std::map<char, rhr_value_e> &base_results, TruthTable &filtered) const
+void Resolver::resolve()
 {
-    bool has_truth_table = truth_table != nullptr && truth_table->hasValidState();
-    if (!has_truth_table)
-        return false;
-
-    filtered = truth_table->filterByResults(initial_facts, base_results);
-    return filtered.hasValidState();
-}
-
-void Resolver::outputResult(char q, rhr_value_e res)
-{
-    std::string resultStr = (res == R_TRUE ? "true" : res == R_FALSE ? "false" : "ambiguous");
-    std::cout << q << " = " << resultStr << std::endl;
-}
-
-rhr_value_e Resolver::resolveQuery(char q, const TruthTable &filtered, bool has_truth_table)
-{
-    resetEvaluationState();
-    reasoning.reset();
-    rhr_value_e res = prove(q, false, false);
-    if (!has_truth_table)
-        return res;
-    return filtered.clampValue(q, res);
-}
-
-void Resolver::resolveQuerie()
-{
-    std::set<char> output_symbols = buildTruthTableFacts(querie);
-    std::map<char, rhr_value_e> base_results = computeBaseResults(output_symbols);
+    std::map<char, rhr_value_e> base_results = computeBaseResults(truth_table.variables);
     TruthTable filtered_truth_table;
     bool has_truth_table = buildFilteredTruthTable(base_results, filtered_truth_table);
 
-    for (char q : output_symbols)
+    for (char q : truth_table.variables)
     {
         rhr_value_e res = base_results.count(q) ? base_results[q] : R_FALSE;
         if (has_truth_table)
@@ -440,11 +415,22 @@ void Resolver::resolveQuerie()
     }
 }
 
+// ------------------------ //
+
+ReasoningStep &Resolver::getReasoning()
+{
+    return reasoning;
+}
+
+const ReasoningStep &Resolver::getReasoning() const
+{
+    return reasoning;
+}
+
 void Resolver::changeFacts(const std::set<char> &new_facts)
 {
     initial_facts = new_facts;
     resetEvaluationState();
-    reasoning.reset();
 
     // Reset token effects in all rules
     for (BasicRule &rule : basic_rules)
@@ -458,4 +444,15 @@ void Resolver::changeFacts(const std::set<char> &new_facts)
             }
         }
     }
+}
+
+// todelete
+
+rhr_value_e Resolver::resolveQuery(char q, const TruthTable &filtered, bool has_truth_table)
+{
+    resetEvaluationState();
+    rhr_value_e res = prove(q, false, false);
+    if (!has_truth_table)
+        return res;
+    return filtered.clampValue(q, res);
 }

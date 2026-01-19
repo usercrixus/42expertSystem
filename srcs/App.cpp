@@ -19,7 +19,7 @@ int App::run(int argc, char **argv)
         return 1;
     }
 
-    Resolver resolver(parser.getQuerie(), parser.getBasicRules(), parser.getInitialFact(), &parser.getCombinedTruthTable());
+    Resolver resolver(parser.getQuerie(), parser.getBasicRules(), parser.getInitialFact(), parser.getCombinedTruthTable());
     if (parser.hasValidStateWithInitialFacts())
     {
         if (print_trace)
@@ -47,7 +47,7 @@ int App::run(int argc, char **argv)
         else
         {
             resolver.getReasoning().setEnabled(false);
-            resolver.resolveQuerie();
+            resolver.resolve();
         }
     }
     else
@@ -159,7 +159,7 @@ int App::runInteractive(Parser &parser, Resolver &resolver)
         else
         {
             resolver.getReasoning().setEnabled(false);
-            resolver.resolveQuerie();
+            resolver.resolve();
         }
     }
     return 0;

@@ -6,6 +6,7 @@
 #include "TokenEffect.hpp"
 #include "TokenBlock.hpp"
 #include "BasicRule.hpp"
+#include <cstdint>
 
 /**
  * Logical rule with tokenized left/right expressions and an operator.

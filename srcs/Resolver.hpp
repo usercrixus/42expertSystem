@@ -61,16 +61,16 @@ private:
 	/** initial facts provided by the input file. */
 	std::set<char> initial_facts;
 	/** optional global truth table constraints. */
-	const TruthTable *truth_table;
+	TruthTable truth_table;
 	/** trace recorder for --explain output. */
 	ReasoningStep reasoning;
-	/** memoized results for already-proven symbols. */
+	/** memorized results for already-proven symbols. */
 	std::unordered_map<char, rhr_value_e> memo;
 	/** recursion tracking to detect cycles. */
 	std::unordered_map<char, bool> visiting;
 
 	/**
-	 * Clear memoization and recursion tracking for a new resolution.
+	 * Clear memorization and recursion tracking for a new resolution.
 	 **/
 	void resetEvaluationState();
 	/**
@@ -80,11 +80,12 @@ private:
 	/**
 	 * Check memo cache and record a trace if hit.
 	 **/
-	bool handleMemoHit(char q, rhr_value_e &result);
-	/**
-	 * Check initial facts and record a trace if matched.
-	 **/
-	bool handleInitialFact(char q, rhr_value_e &result);
+	bool handleQMemo(char q, rhr_value_e &result);
+    bool isQHandled(char q, rhr_value_e &result, bool negated_context, bool direct_negation);
+    /**
+     * Check initial facts and record a trace if matched.
+     **/
+    bool handleQInitialFact(char q, rhr_value_e &result);
 	/**
 	 * Handle recursion cycles based on negation context.
 	 **/
@@ -92,7 +93,7 @@ private:
 	/**
 	 * Decide whether negation-as-failure is allowed for a rule.
 	 **/
-	bool allowNegationAsFailure(const BasicRule &rule) const;
+	bool allowNegationAsFailure(const BasicRule &rule);
 	/**
 	 * Accumulate outcome flags from a single rule evaluation.
 	 **/
@@ -135,10 +136,6 @@ private:
 	 */
 	void resolveLeft(std::vector<TokenBlock> &fact);
 	/**
-	 * Expand the set of facts used for truth table filtering.
-	 **/
-	std::set<char> buildTruthTableFacts(const std::set<char> &queries) const;
-	/**
 	 * Build a filtered truth table from known facts.
 	 **/
 	bool buildFilteredTruthTable(const std::map<char, rhr_value_e> &base_results, TruthTable &filtered) const;
@@ -151,7 +148,7 @@ public:
 	/**
 	 * Construct the resolver with rules, facts, and an optional truth table.
 	 **/
-	Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts, const TruthTable *truth_table = nullptr);
+	Resolver(std::set<char> querie, std::vector<BasicRule> &basic_rules, std::set<char> initial_facts, const TruthTable &truth_table);
 	/**
 	 * Destroy the resolver.
 	 **/
@@ -167,7 +164,7 @@ public:
 	/**
 	 * Resolve all queries and print standard results.
 	 */
-	void resolveQuerie();
+	void resolve();
 	/**
 	 * Resolve one query with optional truth-table clamping.
 	 */

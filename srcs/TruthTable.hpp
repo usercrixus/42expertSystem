@@ -34,6 +34,7 @@ std::ostream &operator<<(std::ostream &os, const VariableState &state);
 
 struct TruthTable
 {
+    /** variables involved in this truth table */
     std::set<char> variables;
     // states that are compatible with the rule
     std::set<VariableState> valid_states;
