@@ -71,46 +71,6 @@ rhr_value_e Resolver::finalizeOutcome(const RuleOutcome &outcome) const
     return R_FALSE;
 }
 
-unsigned int Resolver::getMaxPriority(std::vector<TokenBlock> &fact)
-{
-    unsigned int maxPriority = 0;
-    for (TokenBlock &token_block : fact)
-    {
-        if (token_block.getPriority() > maxPriority)
-            maxPriority = token_block.getPriority();
-    }
-    return maxPriority;
-}
-
-void Resolver::resolveLeft(std::vector<TokenBlock> &fact)
-{
-    unsigned int priority = getMaxPriority(fact);
-    for (size_t i = 0; i < fact.size(); i++)
-    {
-        if (fact[i].getPriority() == priority)
-        {
-            fact[i].execute();
-            if (i != 0)
-            {
-                fact[i - 1].push_back(fact[i][0]);
-                fact.erase(fact.begin() + i);
-            }
-            else
-            {
-                if (fact.size() > 1)
-                {
-                    fact[1].insert(fact[1].begin(), fact[0][0]);
-                    fact.erase(fact.begin());
-                }
-                else
-                    fact[0].setPriority(0);
-            }
-        }
-    }
-    if (fact.size() > 0)
-        resolveLeft(fact);
-}
-
 rhr_value_e Resolver::getTokenValue(TriToken &token, bool negated_context, bool direct_negation)
 {
     if (token.has_value)
@@ -180,70 +140,6 @@ void Resolver::executeOthersTri(std::vector<TriToken> &tokens, char op_target, b
     }
 }
 
-rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure)
-{
-    if (tokens.empty())
-        throw std::logic_error("TriBlock::execute: empty block");
-    executeNotTri(tokens, negated_context, allow_negation_as_failure);
-    executeOthersTri(tokens, '^', negated_context);
-    executeOthersTri(tokens, '|', negated_context);
-    executeOthersTri(tokens, '+', negated_context);
-    if (tokens.size() != 1)
-        throw std::logic_error("TriBlock::execute: reduction did not converge");
-    return getTokenValue(tokens[0], negated_context, false);
-}
-
-rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_negation_as_failure)
-{
-    if (blocks.empty())
-        throw std::logic_error("resolveLeftTri: empty expression");
-    while (true)
-    {
-        unsigned int max_priority = 0;
-        for (const TriBlock &block : blocks)
-            if (block.priority > max_priority)
-                max_priority = block.priority;
-
-        for (size_t i = 0; i < blocks.size();)
-        {
-            if (blocks[i].priority == max_priority)
-            {
-                bool negated_context = false;
-                if (i != 0 && !blocks[i - 1].tokens.empty())
-                {
-                    const TriToken &prev = blocks[i - 1].tokens.back();
-                    if (prev.type == '!')
-                        negated_context = true;
-                }
-                executeTriBlock(blocks[i].tokens, negated_context, allow_negation_as_failure);
-                TriToken result = blocks[i].tokens[0];
-                result.type = 0;
-                result.has_value = true;
-                if (i != 0)
-                {
-                    blocks[i - 1].tokens.push_back(result);
-                    blocks.erase(blocks.begin() + i);
-                    continue;
-                }
-                if (blocks.size() > 1)
-                {
-                    blocks[1].tokens.insert(blocks[1].tokens.begin(), result);
-                    blocks.erase(blocks.begin());
-                    continue;
-                }
-                blocks[i].priority = 0;
-            }
-            ++i;
-        }
-        if (blocks.size() == 1)
-        {
-            if (blocks[0].tokens.size() > 1)
-                executeTriBlock(blocks[0].tokens, false, allow_negation_as_failure);
-            return getTokenValue(blocks[0].tokens[0], false, false);
-        }
-    }
-}
-
 void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome)
 {
     if (lhs_result == R_TRUE)
@@ -263,18 +159,83 @@ void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &ru
     }
 }
 
-rhr_value_e Resolver::evalLHS(std::vector<TokenBlock> lhs, bool allow_negation_as_failure)
+rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure)
 {
-    std::vector<TriBlock> blocks;
+    if (tokens.empty())
+        throw std::logic_error("TriBlock::execute: empty block");
+    executeNotTri(tokens, negated_context, allow_negation_as_failure);
+    executeOthersTri(tokens, '^', negated_context);
+    executeOthersTri(tokens, '|', negated_context);
+    executeOthersTri(tokens, '+', negated_context);
+    if (tokens.size() != 1)
+        throw std::logic_error("TriBlock::execute: reduction did not converge");
+    return getTokenValue(tokens[0], negated_context, false);
+}
+
+unsigned int Resolver::getMaxPriority(std::vector<TriBlock> &blocks)
+{
+    unsigned int max_priority = 0;
+    for (const TriBlock &block : blocks)
+        if (block.priority > max_priority)
+            max_priority = block.priority;
+    return max_priority;
+}
+
+bool Resolver::isNegatedContext(size_t i, std::vector<TriBlock> &blocks)
+{
+    if (i != 0 && !blocks[i - 1].tokens.empty())
+    {
+        const TriToken &prev = blocks[i - 1].tokens.back();
+        if (prev.type == '!')
+            return true;
+    }
+    return false;
+}
+
+rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_negation_as_failure)
+{
+    if (blocks.empty())
+        throw std::logic_error("resolveLeftTri: empty expression");
+    unsigned int max_priority = getMaxPriority(blocks);
+    for (size_t i = 0; i < blocks.size(); i++)
+    {
+        if (blocks[i].priority == max_priority)
+        {
+            executeTriBlock(blocks[i].tokens, isNegatedContext(i, blocks), allow_negation_as_failure);
+            TriToken result = blocks[i].tokens[0];
+            result.type = 0;
+            result.has_value = true;
+            if (i != 0)
+            {
+                blocks[i - 1].tokens.push_back(result);
+                blocks.erase(blocks.begin() + i);
+            }
+            else if (blocks.size() > 1)
+            {
+                blocks[1].tokens.insert(blocks[1].tokens.begin(), result);
+                blocks.erase(blocks.begin());
+            }
+            else
+                blocks[i].priority = 0;
+        }
+    }
+    if (blocks.size() != 1 || blocks[0].tokens.size() > 1)
+        return resolveLeftTri(blocks, allow_negation_as_failure);
+    return getTokenValue(blocks[0].tokens[0], false, false);
+}
+
+std::vector<Resolver::TriBlock> Resolver::buildTriBlockVector(const std::vector<TokenBlock> &lhs)
+{
+    std::vector<Resolver::TriBlock> blocks;
     blocks.reserve(lhs.size());
     for (const TokenBlock &block : lhs)
     {
-        TriBlock tri_block;
+        Resolver::TriBlock tri_block;
         tri_block.priority = block.getPriority();
         tri_block.tokens.reserve(block.size());
         for (const TokenEffect &tk : block)
         {
-            TriToken tri_token;
+            Resolver::TriToken tri_token;
             tri_token.type = tk.type;
             tri_token.value = R_FALSE;
             tri_token.has_value = false;
@@ -282,7 +243,7 @@ rhr_value_e Resolver::evalLHS(std::vector<TokenBlock> lhs, bool allow_negation_a
         }
         blocks.push_back(tri_block);
     }
-    return resolveLeftTri(blocks, allow_negation_as_failure);
+    return blocks;
 }
 
 bool Resolver::allowNegationAsFailure(const BasicRule &rule)
@@ -358,7 +319,8 @@ rhr_value_e Resolver::prove(char q, bool negated_context, bool direct_negation)
         if (rule.rhs_symbol == q)
         {
             has_rule = true;
-            rhr_value_e lhs_result = evalLHS(rule.lhs, allowNegationAsFailure(rule));
+            std::vector<Resolver::TriBlock> blocks = buildTriBlockVector(rule.lhs);
+            rhr_value_e lhs_result = resolveLeftTri(blocks, allowNegationAsFailure(rule));
             reasoning.recordRuleConsidered(q, &rule, lhs_result == R_TRUE);
             updateOutcomeFromRule(lhs_result, rule, outcome);
         }

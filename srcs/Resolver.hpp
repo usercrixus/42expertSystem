@@ -98,14 +98,11 @@ private:
 	 * Accumulate outcome flags from a single rule evaluation.
 	 **/
 	void updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome);
-	/**
-	 * Finalize the boolean outcome into a tri-state value.
-	 **/
-	rhr_value_e finalizeOutcome(const RuleOutcome &outcome) const;
-	/**
-	 * Evaluate a tokenized LHS with tri-state semantics.
-	 **/
-	rhr_value_e evalLHS(std::vector<TokenBlock> lhs, bool allow_negation_as_failure);
+    std::vector<TriBlock> buildTriBlockVector(const std::vector<TokenBlock> &lhs);
+    /**
+     * Finalize the boolean outcome into a tri-state value.
+     **/
+    rhr_value_e finalizeOutcome(const RuleOutcome &outcome) const;
 	/**
 	 * Reduce grouped token blocks by precedence.
 	 **/
@@ -129,12 +126,8 @@ private:
 	/**
 	 * get the max priority of a std::vector<TokenBlock>
 	 */
-	unsigned int getMaxPriority(std::vector<TokenBlock> &fact);
-	/**
-	 * Resolve the lhs of a boolean equation.
-	 * Should end with a vector<TokenBlock> of size 1
-	 */
-	void resolveLeft(std::vector<TokenBlock> &fact);
+	unsigned int getMaxPriority(std::vector<TriBlock> &blocks);
+    bool isNegatedContext(size_t i, std::vector<TriBlock> &blocks);
 	/**
 	 * Build a filtered truth table from known facts.
 	 **/
