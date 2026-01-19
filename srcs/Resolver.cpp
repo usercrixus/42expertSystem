@@ -99,7 +99,7 @@ rhr_value_e Resolver::getTokenValue(TriToken &token, bool negated_context, bool 
     throw std::logic_error("Token value requested for non-value token");
 }
 
-void Resolver::executeNotTri(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure)
+void Resolver::executeNotTri(std::vector<TriToken> &tokens, bool negated_context)
 {
     size_t i = 0;
     while (i < tokens.size())
@@ -109,7 +109,7 @@ void Resolver::executeNotTri(std::vector<TriToken> &tokens, bool negated_context
             if (i + 1 == tokens.size())
                 throw std::logic_error("operator ! has no var attached\n");
             TriToken &next = tokens[i + 1];
-            rhr_value_e val = getTokenValue(next, !negated_context, allow_negation_as_failure);
+            rhr_value_e val = getTokenValue(next, !negated_context, false);
             next.value = resolveNot(val);
             next.has_value = true;
             next.type = 0;
@@ -155,11 +155,11 @@ void Resolver::executeOthersTri(std::vector<TriToken> &tokens, char op_target, b
     }
 }
 
-rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure)
+rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negated_context)
 {
     if (tokens.empty())
         throw std::logic_error("TriBlock::execute: empty block");
-    executeNotTri(tokens, negated_context, allow_negation_as_failure);
+    executeNotTri(tokens, negated_context);
     executeOthersTri(tokens, '+', negated_context);
     executeOthersTri(tokens, '|', negated_context);
     executeOthersTri(tokens, '^', negated_context);
@@ -188,7 +188,7 @@ bool Resolver::isNegatedContext(size_t i, std::vector<TriBlock> &blocks)
     return false;
 }
 
-rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_negation_as_failure)
+rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks)
 {
     if (blocks.empty())
         throw std::logic_error("resolveLeftTri: empty expression");
@@ -197,7 +197,7 @@ rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_n
     {
         if (blocks[i].priority == max_priority)
         {
-            executeTriBlock(blocks[i].tokens, isNegatedContext(i, blocks), allow_negation_as_failure);
+            executeTriBlock(blocks[i].tokens, isNegatedContext(i, blocks));
             TriToken result = blocks[i].tokens[0];
             result.type = 0;
             result.has_value = true;
@@ -216,7 +216,7 @@ rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_n
         }
     }
     if (blocks.size() != 1 || blocks[0].tokens.size() > 1)
-        return resolveLeftTri(blocks, allow_negation_as_failure);
+        return resolveLeftTri(blocks);
     return getTokenValue(blocks[0].tokens[0], false, false);
 }
 
@@ -240,13 +240,6 @@ std::vector<Resolver::TriBlock> Resolver::buildTriBlockVector(const std::vector<
         blocks.push_back(tri_block);
     }
     return blocks;
-}
-
-bool Resolver::allowNegationAsFailure(const BasicRule &rule)
-{
-    if (rule.origin == nullptr)
-        return false;
-    return false;
 }
 
 bool Resolver::handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result)
@@ -301,7 +294,7 @@ rhr_value_e Resolver::prove(char q, bool negated_context, bool direct_negation)
         if (rule.rhs_symbol == q)
         {
             std::vector<Resolver::TriBlock> blocks = buildTriBlockVector(rule.lhs);
-            rhr_value_e lhs_result = resolveLeftTri(blocks, allowNegationAsFailure(rule));
+            rhr_value_e lhs_result = resolveLeftTri(blocks);
             reasoning.recordRuleConsidered(q, &rule, lhs_result == R_TRUE);
             updateOutcomeFromRule(lhs_result, rule, outcome);
         }

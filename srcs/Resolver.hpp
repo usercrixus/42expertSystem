@@ -90,10 +90,6 @@ private:
 	 **/
 	bool handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result);
 	/**
-	 * Decide whether negation-as-failure is allowed for a rule.
-	 **/
-	bool allowNegationAsFailure(const BasicRule &rule);
-	/**
 	 * Accumulate outcome flags from a single rule evaluation.
 	 **/
 	void updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome);
@@ -105,15 +101,15 @@ private:
 	/**
 	 * Reduce grouped token blocks by precedence.
 	 **/
-	rhr_value_e resolveLeftTri(std::vector<TriBlock> &blocks, bool allow_negation_as_failure);
+	rhr_value_e resolveLeftTri(std::vector<TriBlock> &blocks);
 	/**
 	 * Execute a single token block with tri-state operators.
 	 **/
-	rhr_value_e executeTriBlock(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure);
+	rhr_value_e executeTriBlock(std::vector<TriToken> &tokens, bool negated_context);
 	/**
 	 * Apply NOT operations for a tri-state token block.
 	 **/
-	void executeNotTri(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure);
+	void executeNotTri(std::vector<TriToken> &tokens, bool negated_context);
 	/**
 	 * Apply a specific binary operator for a tri-state token block.
 	 **/
