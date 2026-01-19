@@ -1,4 +1,5 @@
 #include "Resolver.hpp"
+#include "LogicRule.hpp"
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -64,11 +65,25 @@ rhr_value_e Resolver::finalizeOutcome(const RuleOutcome &outcome) const
         return R_TRUE;
     if (outcome.definite_false)
         return R_FALSE;
-    if (outcome.possible_true && outcome.possible_false)
-        return R_AMBIGOUS;
     if (outcome.possible_true || outcome.possible_false)
         return R_AMBIGOUS;
     return R_FALSE;
+}
+
+void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome)
+{
+    if (lhs_result == R_TRUE)
+    {
+        if (!rule.rhs_negated)
+            outcome.definite_true = true;
+        else
+            outcome.definite_false = true;
+    }
+    else if (lhs_result == R_AMBIGOUS)
+    {
+        outcome.possible_true = true;
+        outcome.possible_false = true;
+    }
 }
 
 rhr_value_e Resolver::getTokenValue(TriToken &token, bool negated_context, bool direct_negation)
@@ -140,33 +155,14 @@ void Resolver::executeOthersTri(std::vector<TriToken> &tokens, char op_target, b
     }
 }
 
-void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &rule, RuleOutcome &outcome)
-{
-    if (lhs_result == R_TRUE)
-    {
-        if (!rule.rhs_negated)
-            outcome.definite_true = true;
-        else
-            outcome.definite_false = true;
-        return;
-    }
-    if (lhs_result == R_AMBIGOUS)
-    {
-        if (!rule.rhs_negated)
-            outcome.possible_true = true;
-        else
-            outcome.possible_false = true;
-    }
-}
-
 rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negated_context, bool allow_negation_as_failure)
 {
     if (tokens.empty())
         throw std::logic_error("TriBlock::execute: empty block");
     executeNotTri(tokens, negated_context, allow_negation_as_failure);
-    executeOthersTri(tokens, '^', negated_context);
-    executeOthersTri(tokens, '|', negated_context);
     executeOthersTri(tokens, '+', negated_context);
+    executeOthersTri(tokens, '|', negated_context);
+    executeOthersTri(tokens, '^', negated_context);
     if (tokens.size() != 1)
         throw std::logic_error("TriBlock::execute: reduction did not converge");
     return getTokenValue(tokens[0], negated_context, false);
@@ -311,27 +307,19 @@ rhr_value_e Resolver::prove(char q, bool negated_context, bool direct_negation)
     if (isQHandled(q, result, negated_context, direct_negation))
         return result;
     visiting[q] = negated_context;
-
-    bool has_rule = false;
     RuleOutcome outcome = {false, false, false, false};
     for (const BasicRule &rule : basic_rules)
     {
         if (rule.rhs_symbol == q)
         {
-            has_rule = true;
             std::vector<Resolver::TriBlock> blocks = buildTriBlockVector(rule.lhs);
             rhr_value_e lhs_result = resolveLeftTri(blocks, allowNegationAsFailure(rule));
             reasoning.recordRuleConsidered(q, &rule, lhs_result == R_TRUE);
             updateOutcomeFromRule(lhs_result, rule, outcome);
         }
     }
-
     visiting.erase(q);
-
-    if (!has_rule && negated_context && !direct_negation)
-        result = R_AMBIGOUS;
-    else
-        result = finalizeOutcome(outcome);
+    result = finalizeOutcome(outcome);
     memo[q] = result;
     return result;
 }

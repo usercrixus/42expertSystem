@@ -1,13 +1,12 @@
 #pragma once
 #include <vector>
-#include "LogicRule.hpp"
+#include "BasicRule.hpp"
 #include "ReasoningStep.hpp"
 #include "ReasoningTypes.hpp"
 #include "TruthTable.hpp"
 #include <map>
 #include <set>
 #include <unordered_map>
-#include <string>
 
 /**
  * Resolves queries using rule evaluation and optional truth-table constraints.
