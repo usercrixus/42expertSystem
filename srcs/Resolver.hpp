@@ -75,12 +75,12 @@ private:
 	/**
 	 * Resolve a symbol with recursion and memoization.
 	 **/
-	rhr_value_e prove(char q, bool negated_context, bool direct_negation);
+	rhr_value_e prove(char q, bool negated_context);
 	/**
 	 * Check memo cache and record a trace if hit.
 	 **/
 	bool handleQMemo(char q, rhr_value_e &result);
-    bool isQHandled(char q, rhr_value_e &result, bool negated_context, bool direct_negation);
+    bool isQHandled(char q, rhr_value_e &result, bool negated_context);
     /**
      * Check initial facts and record a trace if matched.
      **/
@@ -88,7 +88,7 @@ private:
 	/**
 	 * Handle recursion cycles based on negation context.
 	 **/
-	bool handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result);
+	bool handleVisiting(char q, bool negated_context, rhr_value_e &result);
 	/**
 	 * Accumulate outcome flags from a single rule evaluation.
 	 **/
@@ -117,7 +117,7 @@ private:
 	/**
 	 * Resolve a token value, proving symbols as needed.
 	 **/
-	rhr_value_e getTokenValue(TriToken &token, bool negated_context, bool direct_negation);
+	rhr_value_e getTokenValue(TriToken &token, bool negated_context);
 	/**
 	 * get the max priority of a std::vector<TokenBlock>
 	 */

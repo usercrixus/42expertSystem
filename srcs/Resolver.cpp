@@ -86,13 +86,13 @@ void Resolver::updateOutcomeFromRule(rhr_value_e lhs_result, const BasicRule &ru
     }
 }
 
-rhr_value_e Resolver::getTokenValue(TriToken &token, bool negated_context, bool direct_negation)
+rhr_value_e Resolver::getTokenValue(TriToken &token, bool negated_context)
 {
     if (token.has_value)
         return token.value;
     if (token.type >= 'A' && token.type <= 'Z')
     {
-        token.value = prove(token.type, negated_context, direct_negation);
+        token.value = prove(token.type, negated_context);
         token.has_value = true;
         return token.value;
     }
@@ -109,7 +109,7 @@ void Resolver::executeNotTri(std::vector<TriToken> &tokens, bool negated_context
             if (i + 1 == tokens.size())
                 throw std::logic_error("operator ! has no var attached\n");
             TriToken &next = tokens[i + 1];
-            rhr_value_e val = getTokenValue(next, !negated_context, false);
+            rhr_value_e val = getTokenValue(next, !negated_context);
             next.value = resolveNot(val);
             next.has_value = true;
             next.type = 0;
@@ -133,8 +133,8 @@ void Resolver::executeOthersTri(std::vector<TriToken> &tokens, char op_target, b
                 throw std::logic_error(std::string("operator ") + op_target + " has no var attached\n");
             TriToken &left = tokens[i - 1];
             TriToken &right = tokens[i + 1];
-            rhr_value_e lval = getTokenValue(left, negated_context, false);
-            rhr_value_e rval = getTokenValue(right, negated_context, false);
+            rhr_value_e lval = getTokenValue(left, negated_context);
+            rhr_value_e rval = getTokenValue(right, negated_context);
             rhr_value_e res = R_FALSE;
             if (op_target == '+')
                 res = resolveAnd(lval, rval);
@@ -165,7 +165,7 @@ rhr_value_e Resolver::executeTriBlock(std::vector<TriToken> &tokens, bool negate
     executeOthersTri(tokens, '^', negated_context);
     if (tokens.size() != 1)
         throw std::logic_error("TriBlock::execute: reduction did not converge");
-    return getTokenValue(tokens[0], negated_context, false);
+    return getTokenValue(tokens[0], negated_context);
 }
 
 unsigned int Resolver::getMaxPriority(std::vector<TriBlock> &blocks)
@@ -217,7 +217,7 @@ rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks)
     }
     if (blocks.size() != 1 || blocks[0].tokens.size() > 1)
         return resolveLeftTri(blocks);
-    return getTokenValue(blocks[0].tokens[0], false, false);
+    return getTokenValue(blocks[0].tokens[0], false);
 }
 
 std::vector<Resolver::TriBlock> Resolver::buildTriBlockVector(const std::vector<TokenBlock> &lhs)
@@ -242,13 +242,13 @@ std::vector<Resolver::TriBlock> Resolver::buildTriBlockVector(const std::vector<
     return blocks;
 }
 
-bool Resolver::handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result)
+bool Resolver::handleVisiting(char q, bool negated_context, rhr_value_e &result)
 {
     std::unordered_map<char, bool>::iterator visitingIt = visiting.find(q);
     if (visitingIt == visiting.end())
         return false;
     if (visitingIt->second != negated_context)
-        result = direct_negation ? R_FALSE : R_AMBIGOUS;
+        result = R_AMBIGOUS;
     else
         result = R_FALSE;
     return true;
@@ -275,17 +275,17 @@ bool Resolver::handleQMemo(char q, rhr_value_e &result)
     return true;
 }
 
-bool Resolver::isQHandled(char q, rhr_value_e &result, bool negated_context, bool direct_negation)
+bool Resolver::isQHandled(char q, rhr_value_e &result, bool negated_context)
 {
-    if (handleQMemo(q, result) || handleQInitialFact(q, result) || handleVisiting(q, negated_context, direct_negation, result))
+    if (handleQMemo(q, result) || handleQInitialFact(q, result) || handleVisiting(q, negated_context, result))
         return true;
     return false;
 }
 
-rhr_value_e Resolver::prove(char q, bool negated_context, bool direct_negation)
+rhr_value_e Resolver::prove(char q, bool negated_context)
 {
     rhr_value_e result = R_FALSE;
-    if (isQHandled(q, result, negated_context, direct_negation))
+    if (isQHandled(q, result, negated_context))
         return result;
     visiting[q] = negated_context;
     RuleOutcome outcome = {false, false, false, false};
@@ -326,7 +326,7 @@ std::map<char, rhr_value_e> Resolver::computeBaseResults(const std::set<char> &f
     for (char q : facts)
     {
         resetEvaluationState();
-        base_results[q] = prove(q, false, false);
+        base_results[q] = prove(q, false);
     }
     return base_results;
 }
@@ -382,7 +382,7 @@ void Resolver::changeFacts(const std::set<char> &new_facts)
 rhr_value_e Resolver::resolveQuery(char q, const TruthTable &filtered, bool has_truth_table)
 {
     resetEvaluationState();
-    rhr_value_e res = prove(q, false, false);
+    rhr_value_e res = prove(q, false);
     if (!has_truth_table)
         return res;
     return filtered.clampValue(q, res);
