@@ -168,6 +168,15 @@ static std::vector<TokenBlock> negateBlocks(const std::vector<TokenBlock> &block
     return negated;
 }
 
+static void parenthesizeBlocks(std::vector<TokenBlock> &blocks)
+{
+    for (TokenBlock &blk : blocks)
+    {
+        if (!blk.empty())
+            blk = blk.withPriority(blk.getPriority() + 1);
+    }
+}
+
 static void appendNegatedToLhs(std::vector<TokenBlock> &lhs, const std::vector<TokenBlock> &to_negate)
 {
     if (to_negate.empty())
@@ -177,53 +186,25 @@ static void appendNegatedToLhs(std::vector<TokenBlock> &lhs, const std::vector<T
     if (negated.empty())
         return;
 
-    bool first_is_just_negation = (negated.size() > 1 && 
-                                   negated[0].getPriority() == 0 &&
-                                   negated[0].size() == 1 && 
-                                   negated[0][0].type == '!');
-    
-    if (first_is_just_negation)
+    bool lhs_simple = lhs.size() == 1 && lhs[0].hasAnyOperator({'+', '|', '^'}) == false;
+    if (!lhs.empty() && !lhs_simple)
+        parenthesizeBlocks(lhs);
+    TokenBlock and_block(0, '+');
+    if (lhs_simple)
+        lhs[0].appendTokens(and_block);
+    if (negated[0].getPriority() == 0)
     {
-        // Merge '+' and '!' into the last LHS block if possible
-        if (!lhs.empty() && lhs.back().getPriority() == 0)
-        {
-            lhs.back().emplace_back(TokenEffect('+'));
-            lhs.back().emplace_back(TokenEffect('!'));
-            // Add remaining blocks (the parenthesized content)
-            lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
-        }
-        else
-        {
-            // Create new block with '+' and '!'
-            TokenBlock and_neg_block(0);
-            and_neg_block.emplace_back(TokenEffect('+'));
-            and_neg_block.emplace_back(TokenEffect('!'));
-            lhs.push_back(and_neg_block);
-            lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
-        }
-    }
-    else if (!lhs.empty() && lhs.back().getPriority() == 0 && 
-             !negated.empty() && negated[0].getPriority() == 0)
-    {
-        // Simple case: merge into last lhs block
-        lhs.back().emplace_back(TokenEffect('+'));
-        lhs.back().appendTokens(negated[0]);
-        lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
-    }
-    else
-    {
-        TokenBlock and_block(0, '+');
-        if (!negated.empty() && negated[0].getPriority() == 0)
-        {
+        if (lhs_simple)
+            lhs[0].appendTokens(negated[0]);
+        else {
             and_block.appendTokens(negated[0]);
             lhs.push_back(and_block);
-            lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
         }
-        else
-        {
+        lhs.insert(lhs.end(), negated.begin() + 1, negated.end());
+    } else {
+        if (!lhs_simple)
             lhs.push_back(and_block);
-            lhs.insert(lhs.end(), negated.begin(), negated.end());
-        }
+        lhs.insert(lhs.end(), negated.begin(), negated.end());
     }
 }
 
@@ -370,6 +351,92 @@ static std::vector<LogicRule> expandEquivalence(const LogicRule &rule)
     }
     
     return expanded;
+}
+
+static int getOperatorPriority(char op)
+{
+    if (op == '^') return 0;  // XOR: lowest priority
+    if (op == '|') return 1;  // OR: medium priority
+    if (op == '+') return 2;  // AND: highest priority
+    return 3;                  // non-operator
+}
+
+// [A, |, B, +, C] at p0 -> [A, |] at p0 and [B, +, C] at p1
+static std::vector<TokenBlock> normalizeBlocksByOperatorPriority(const std::vector<TokenBlock> &blocks)
+{
+    std::vector<TokenBlock> result;
+    
+    for (const TokenBlock &block : blocks)
+    {
+        if (block.empty())
+            continue;
+        
+        // Single operator or symbol - keep as is
+        if (block.size() <= 1)
+        {
+            result.push_back(block);
+            continue;
+        }
+        
+        // Check if block has multiple operator types at base priority
+        std::set<char> operators_in_block;
+        for (const TokenEffect &tk : block)
+        {
+            if (tk.type == '+' || tk.type == '|' || tk.type == '^')
+                operators_in_block.insert(tk.type);
+        }
+        
+        // If only one operator type or no operators, keep block as is
+        if (operators_in_block.size() <= 1)
+        {
+            result.push_back(block);
+            continue;
+        }
+        
+        // Multiple operator types found - split by lowest-priority operator first
+        // Find the lowest-priority operator in this block
+        char split_operator = 0;
+        int lowest_priority = INT_MAX;
+        size_t split_index = 0;
+        
+        for (size_t i = 0; i < block.size(); ++i)
+        {
+            int op_priority = getOperatorPriority(block[i].type);
+            if (op_priority < lowest_priority)
+            {
+                lowest_priority = op_priority;
+                split_operator = block[i].type;
+                split_index = i;
+            }
+        }
+        
+        if (split_operator == 0)
+        {
+            // No operators found (shouldn't happen)
+            result.push_back(block);
+            continue;
+        }
+        
+        // Split at the lowest-priority operator
+        // Left part stays at current priority
+        TokenBlock left_part = block.extractRange(0, split_index, block.getPriority());
+        if (!left_part.empty())
+            result.push_back(left_part);
+        
+        // Operator itself stays at current priority
+        result.push_back(TokenBlock(block.getPriority(), split_operator));
+        
+        // Right part moves to higher priority (parentheses)
+        TokenBlock right_part = block.extractRange(split_index + 1, SIZE_MAX, block.getPriority() + 1);
+        if (!right_part.empty())
+        {
+            // Recursively normalize the right part (it may contain more mixed operators)
+            std::vector<TokenBlock> normalized_right = normalizeBlocksByOperatorPriority({right_part});
+            result.insert(result.end(), normalized_right.begin(), normalized_right.end());
+        }
+    }
+    
+    return result;
 }
 
 // A => B + C becomes A => B and A => C
@@ -546,10 +613,13 @@ static std::vector<LogicRule> expandXorOperator(const LogicRule &rule, size_t bl
 static std::vector<LogicRule> expandRhs(const LogicRule &rule)
 {
     std::vector<LogicRule> result;
+
+    LogicRule normalized_rule = rule;
+    normalized_rule.rhs = normalizeBlocksByOperatorPriority(rule.rhs);
     
     // Find lowest priority block
     unsigned int min_priority = UINT_MAX;
-    for (const TokenBlock &block : rule.rhs)
+    for (const TokenBlock &block : normalized_rule.rhs)
     {
         unsigned int p = block.getPriority();
         if (p < min_priority)
@@ -558,7 +628,7 @@ static std::vector<LogicRule> expandRhs(const LogicRule &rule)
     
     // check AND operators (+)
     bool has_and_at_lowest = false;
-    for (const TokenBlock &block : rule.rhs)
+    for (const TokenBlock &block : normalized_rule.rhs)
     {
         if (block.getPriority() == min_priority)
         {
@@ -574,21 +644,21 @@ static std::vector<LogicRule> expandRhs(const LogicRule &rule)
         if (has_and_at_lowest) break;
     }
     if (has_and_at_lowest)
-        return splitByAndAtLowestPriority(rule, min_priority);
+        return splitByAndAtLowestPriority(normalized_rule, min_priority);
     
     // Look for OR or XOR and expand them
-    for (size_t i = 0; i < rule.rhs.size(); ++i)
+    for (size_t i = 0; i < normalized_rule.rhs.size(); ++i)
     {
-        const TokenBlock &block = rule.rhs[i];
+        const TokenBlock &block = normalized_rule.rhs[i];
         for (size_t j = 0; j < block.size(); ++j)
         {
             if (block[j].type == '|')
-                return expandOrOperator(rule, i, j);
+                return expandOrOperator(normalized_rule, i, j);
             else if (block[j].type == '^')
-                return expandXorOperator(rule, i, j);
+                return expandXorOperator(normalized_rule, i, j);
         }
     }
-    result.push_back(rule);
+    result.push_back(normalized_rule);
     return result;
 }
 

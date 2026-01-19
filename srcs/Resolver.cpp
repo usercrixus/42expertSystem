@@ -245,20 +245,8 @@ std::vector<Resolver::TriBlock> Resolver::buildTriBlockVector(const std::vector<
 bool Resolver::allowNegationAsFailure(const BasicRule &rule)
 {
     if (rule.origin == nullptr)
-        return true;
-    const std::vector<TokenBlock> *sides[] = {&rule.origin->lhs, &rule.origin->rhs};
-    for (const std::vector<TokenBlock> *side : sides)
-    {
-        for (const TokenBlock &block : *side)
-        {
-            for (const TokenEffect &tk : block)
-            {
-                if (tk.type == '|' || tk.type == '^')
-                    return false;
-            }
-        }
-    }
-    return true;
+        return false;
+    return false;
 }
 
 bool Resolver::handleVisiting(char q, bool negated_context, bool direct_negation, rhr_value_e &result)

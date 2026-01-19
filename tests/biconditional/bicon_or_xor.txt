@@ -1,0 +1,12 @@
+# Ambiguity in biconditional
+
+A | B <=> ( C )
+D ^ E <=> F
+# Expected: A = ambiguous, B = ambiguous, D = ambiguous, E = ambiguous
+
+G <=> A | B
+H <=> D ^ E
+# Expected: G = True, H = True
+
+= C F
+? A B D E G H
