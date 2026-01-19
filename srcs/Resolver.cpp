@@ -217,7 +217,7 @@ rhr_value_e Resolver::resolveLeftTri(std::vector<TriBlock> &blocks)
     }
     if (blocks.size() != 1 || blocks[0].tokens.size() > 1)
         return resolveLeftTri(blocks);
-    return getTokenValue(blocks[0].tokens[0], false);
+    return blocks[0].tokens[0].value;
 }
 
 std::vector<Resolver::TriBlock> Resolver::buildTriBlockVector(const std::vector<TokenBlock> &lhs)
