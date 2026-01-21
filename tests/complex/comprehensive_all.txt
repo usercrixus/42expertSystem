@@ -9,4 +9,4 @@ H | I => K
 
 # Use minimal facts to keep the system consistent
 = A B
-? F G H I J
+? F G H I J K
