@@ -1,7 +1,7 @@
 # Ambiguity in two rules equivalent to OR
-A + !B => C
-A + !C => B
+!B => C
+!C => B
 # Expected: B = ambiguous, C = ambiguous
 
-= A
+=
 ? B C

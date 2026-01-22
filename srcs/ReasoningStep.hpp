@@ -4,19 +4,25 @@
 #include <string>
 #include <vector>
 #include <ostream>
+#include <map>
 #include "BasicRule.hpp"
 #include "ReasoningTypes.hpp"
 
-/**
- * One trace entry describing how a symbol was derived.
- **/
-struct ReasoningTraceStep
+enum class RuleStatus
 {
-	std::string description;
-	char symbol;
-	const BasicRule* rule;
-	rhr_value_e conclusion;
-	bool lhs_fired;
+    FIRED_TRUE,
+    FIRED_FALSE,
+    NOT_FIRED,
+    AMBIGUOUS_CYCLE,
+    AMBIGUOUS_DEPENDS
+};
+
+struct RuleEvaluation
+{
+    const BasicRule* rule;
+    RuleStatus status;
+    std::set<char> blocking_vars;  // Variables that caused ambiguity
+    char cycle_var;                // If AMBIGUOUS_CYCLE, which var caused it
 };
 
 /**
@@ -25,45 +31,53 @@ struct ReasoningTraceStep
 class ReasoningStep
 {
 public:
-	ReasoningStep();
-	~ReasoningStep();
+    ReasoningStep();
+    ~ReasoningStep();
 
-	/**
-	 * Enable or disable trace collection.
-	 **/
-	void setEnabled(bool enabled);
-	/**
-	 * Clear any previously collected trace steps.
-	 **/
-	void reset();
-	/**
-	 * Record a line describing an initial fact.
-	 **/
-	void recordInitialFact(char q);
-	/**
-	 * Record a fired rule that contributes to the current symbol.
-	 **/
-	void recordRuleConsidered(char q, const BasicRule* rule, bool lhs_fired);
-	/**
-	 * Record a memoized value hit during resolution.
-	 **/
-	void recordMemoHit(char q, rhr_value_e val);
-	/**
-	 * Print the trace for a given symbol and final result.
-	 **/
-	void printTrace(char q, rhr_value_e result, std::ostream &os) const;
-	/**
-	 * Print the initial facts heading.
-	 **/
-	void printInitialFacts(const std::set<char> &initial_facts, std::ostream &os) const;
-	/**
-	 * Access the collected trace steps.
-	 **/
-	const std::vector<ReasoningTraceStep> &getTrace() const;
+    void setEnabled(bool enabled);
+    bool isEnabled() const;
+    void reset();
+    
+    // Record different events
+    void recordInitialFact(char q);
+    
+    /**
+     * Record a rule evaluation with its full status
+     **/
+    void recordRuleEvaluation(char q, const BasicRule* rule, RuleStatus status,
+                              const std::set<char> &blocking_vars = {},
+                              char cycle_var = 0);
+    
+    /**
+     * Record the final outcome after prove() completes
+     **/
+    void recordProveResult(char q, rhr_value_e result);
+    
+    /**
+     * Record when truth table clamping changes a result
+     **/
+    void recordTruthTableClamp(char q, rhr_value_e before, rhr_value_e after,
+                               const std::string &reason);
+    
+    void printTrace(char q, std::ostream &os) const;
+    void printInitialFacts(const std::set<char> &initial_facts, std::ostream &os) const;
 
 private:
-	// Accumulated trace steps for the current resolution.
-	std::vector<ReasoningTraceStep> current_trace;
-	// Enable or disable trace collection.
-	bool capture_trace;
+    struct SymbolTrace
+    {
+        std::vector<RuleEvaluation> rule_evals;
+        rhr_value_e prove_result = R_FALSE;
+        bool was_initial_fact = false;
+        bool was_clamped = false;
+        rhr_value_e clamped_from = R_FALSE;
+        rhr_value_e clamped_to = R_FALSE;
+        std::string clamp_reason;
+        bool trace_complete = false;
+    };
+    
+    std::map<char, SymbolTrace> traces;
+    bool capture_trace;
+    
+    std::string formatRuleEvaluation(char q, const RuleEvaluation &eval) const;
+    std::string formatConclusion(char q, const SymbolTrace &trace) const;
 };

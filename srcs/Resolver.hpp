@@ -122,6 +122,9 @@ private:
 	 * get the max priority of a std::vector<TokenBlock>
 	 */
 	unsigned int getMaxPriority(std::vector<TriBlock> &blocks);
+	char getCycleVarInRule(const BasicRule &rule);
+	std::set<char> getFalseVarsInRule(const BasicRule &rule);
+	std::set<char> getAmbiguousVarsInRule(const BasicRule &rule);
     bool isNegatedContext(size_t i, std::vector<TriBlock> &blocks);
 	/**
 	 * Build a filtered truth table from known facts.

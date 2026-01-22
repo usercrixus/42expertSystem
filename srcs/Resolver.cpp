@@ -54,7 +54,6 @@ void Resolver::resetEvaluationState()
 {
     memo.clear();
     visiting.clear();
-    reasoning.reset();
 }
 
 rhr_value_e Resolver::finalizeOutcome(const RuleOutcome &outcome) const
@@ -270,7 +269,6 @@ bool Resolver::handleQMemo(char q, rhr_value_e &result)
     std::unordered_map<char, rhr_value_e>::iterator memoIt = memo.find(q);
     if (memoIt == memo.end())
         return false;
-    reasoning.recordMemoHit(q, memoIt->second);
     result = memoIt->second;
     return true;
 }
@@ -287,22 +285,80 @@ rhr_value_e Resolver::prove(char q, bool negated_context)
     rhr_value_e result = R_FALSE;
     if (isQHandled(q, result, negated_context))
         return result;
+    
     visiting[q] = negated_context;
     RuleOutcome outcome = {false, false, false, false};
+    
     for (const BasicRule &rule : basic_rules)
     {
         if (rule.rhs_symbol == q)
         {
             std::vector<Resolver::TriBlock> blocks = buildTriBlockVector(rule.lhs);
             rhr_value_e lhs_result = resolveLeftTri(blocks);
-            reasoning.recordRuleConsidered(q, &rule, lhs_result == R_TRUE);
+            
+            if (lhs_result == R_TRUE)
+            {
+                RuleStatus status = rule.rhs_negated ? RuleStatus::FIRED_FALSE : RuleStatus::FIRED_TRUE;
+                reasoning.recordRuleEvaluation(q, &rule, status);
+            }
+            else if (lhs_result == R_FALSE)
+            {
+                reasoning.recordRuleEvaluation(q, &rule, RuleStatus::NOT_FIRED);
+            }
+            else // R_AMBIGOUS
+            {
+                std::set<char> ambig_vars = getAmbiguousVarsInRule(rule);
+                char cycle_var = getCycleVarInRule(rule);
+                
+                if (cycle_var != 0)
+                    reasoning.recordRuleEvaluation(q, &rule, RuleStatus::AMBIGUOUS_CYCLE, {}, cycle_var);
+                else
+                    reasoning.recordRuleEvaluation(q, &rule, RuleStatus::AMBIGUOUS_DEPENDS, ambig_vars);
+            }
             updateOutcomeFromRule(lhs_result, rule, outcome);
         }
     }
+    
     visiting.erase(q);
     result = finalizeOutcome(outcome);
+    reasoning.recordProveResult(q, result);
+    
     memo[q] = result;
     return result;
+}
+
+std::set<char> Resolver::getAmbiguousVarsInRule(const BasicRule &rule)
+{
+    std::set<char> ambig_vars;
+    for (const TokenBlock &block : rule.lhs)
+    {
+        for (const TokenEffect &tk : block)
+        {
+            if (tk.type >= 'A' && tk.type <= 'Z')
+            {
+                auto it = memo.find(tk.type);
+                if (it != memo.end() && it->second == R_AMBIGOUS)
+                    ambig_vars.insert(tk.type);
+            }
+        }
+    }
+    return ambig_vars;
+}
+
+char Resolver::getCycleVarInRule(const BasicRule &rule)
+{
+    for (const TokenBlock &block : rule.lhs)
+    {
+        for (const TokenEffect &tk : block)
+        {
+            if (tk.type >= 'A' && tk.type <= 'Z')
+            {
+                if (visiting.find(tk.type) != visiting.end())
+                    return tk.type;
+            }
+        }
+    }
+    return 0;
 }
 
 void Resolver::outputResult(char q, rhr_value_e res)
@@ -333,6 +389,7 @@ std::map<char, rhr_value_e> Resolver::computeBaseResults(const std::set<char> &f
 
 void Resolver::resolve()
 {
+    reasoning.reset();
     std::map<char, rhr_value_e> base_results = computeBaseResults(truth_table.variables);
     TruthTable filtered_truth_table;
     bool has_truth_table = buildFilteredTruthTable(base_results, filtered_truth_table);
@@ -341,8 +398,30 @@ void Resolver::resolve()
     {
         rhr_value_e res = base_results.count(q) ? base_results[q] : R_FALSE;
         if (has_truth_table)
-            res = filtered_truth_table.clampValue(q, res);
-        outputResult(q, res);
+        {
+            rhr_value_e clamped = filtered_truth_table.clampValue(q, res);
+            if (clamped != res)
+            {
+                std::string reason;
+                if (res == R_AMBIGOUS && clamped == R_TRUE)
+                    reason = "All cases require " + std::string(1, q) + " to be true";
+                else if (res == R_AMBIGOUS && clamped == R_FALSE)
+                    reason = "All cases require " + std::string(1, q) + " to be false";
+                else
+                    reason = "Truth table constraint forces " + std::string(1, q) + " to a definite value";
+                
+                reasoning.recordTruthTableClamp(q, res, clamped, reason);
+            }
+            res = clamped;
+        }
+        
+        if (querie.find(q) != querie.end())
+        {
+            if (reasoning.isEnabled())
+                reasoning.printTrace(q, std::cout);
+            else
+                outputResult(q, res);
+        }
     }
 }
 
@@ -363,7 +442,6 @@ void Resolver::changeFacts(const std::set<char> &new_facts)
     initial_facts = new_facts;
     resetEvaluationState();
 
-    // Reset token effects in all rules
     for (BasicRule &rule : basic_rules)
     {
         for (TokenBlock &block : rule.lhs)
@@ -375,15 +453,4 @@ void Resolver::changeFacts(const std::set<char> &new_facts)
             }
         }
     }
-}
-
-// todelete
-
-rhr_value_e Resolver::resolveQuery(char q, const TruthTable &filtered, bool has_truth_table)
-{
-    resetEvaluationState();
-    rhr_value_e res = prove(q, false);
-    if (!has_truth_table)
-        return res;
-    return filtered.clampValue(q, res);
 }

@@ -22,33 +22,10 @@ int App::run(int argc, char **argv)
     Resolver resolver(parser.getQuerie(), parser.getBasicRules(), parser.getInitialFact(), parser.getCombinedTruthTable());
     if (parser.hasValidStateWithInitialFacts())
     {
+        resolver.getReasoning().setEnabled(print_trace);
         if (print_trace)
-        {
-            resolver.getReasoning().setEnabled(true);
             resolver.getReasoning().printInitialFacts(parser.getInitialFact(), std::cout);
-
-            std::set<char> facts_for_truth_table = parser.getQuerie();
-            if (parser.getCombinedTruthTable().hasValidState())
-            {
-                facts_for_truth_table.insert(parser.getCombinedTruthTable().variables.begin(),
-                                             parser.getCombinedTruthTable().variables.end());
-            }
-            std::map<char, rhr_value_e> base_results = resolver.computeBaseResults(facts_for_truth_table);
-            TruthTable filtered_truth_table;
-            bool has_truth_table = parser.getCombinedTruthTable().hasValidState() &&
-                                   (filtered_truth_table = parser.getCombinedTruthTable().filterByResults(parser.getInitialFact(), base_results)).hasValidState();
-
-            for (char q : parser.getQuerie())
-            {
-                rhr_value_e res = resolver.resolveQuery(q, filtered_truth_table, has_truth_table);
-                resolver.getReasoning().printTrace(q, res, std::cout);
-            }
-        }
-        else
-        {
-            resolver.getReasoning().setEnabled(false);
-            resolver.resolve();
-        }
+        resolver.resolve();
     }
     else
     {
@@ -134,33 +111,8 @@ int App::runInteractive(Parser &parser, Resolver &resolver)
             continue;
         }
         resolver.changeFacts(parser.getInitialFact());
-        if (print_trace)
-        {
-            resolver.getReasoning().setEnabled(true);
-            resolver.getReasoning().printInitialFacts(parser.getInitialFact(), std::cout);
-
-            std::set<char> facts_for_truth_table = parser.getQuerie();
-            if (parser.getCombinedTruthTable().hasValidState())
-            {
-                facts_for_truth_table.insert(parser.getCombinedTruthTable().variables.begin(),
-                                             parser.getCombinedTruthTable().variables.end());
-            }
-            std::map<char, rhr_value_e> base_results = resolver.computeBaseResults(facts_for_truth_table);
-            TruthTable filtered_truth_table;
-            bool has_truth_table = parser.getCombinedTruthTable().hasValidState() &&
-                                   (filtered_truth_table = parser.getCombinedTruthTable().filterByResults(parser.getInitialFact(), base_results)).hasValidState();
-
-            for (char q : parser.getQuerie())
-            {
-                rhr_value_e res = resolver.resolveQuery(q, filtered_truth_table, has_truth_table);
-                resolver.getReasoning().printTrace(q, res, std::cout);
-            }
-        }
-        else
-        {
-            resolver.getReasoning().setEnabled(false);
-            resolver.resolve();
-        }
+        resolver.getReasoning().setEnabled(print_trace);
+        resolver.resolve();
     }
     return 0;
 }

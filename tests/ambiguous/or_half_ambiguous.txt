@@ -1,0 +1,7 @@
+A => B | C
+B => C
+#Expected: B = ambiguous, C = true
+
+= A
+
+? B C
